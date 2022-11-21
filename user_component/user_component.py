@@ -10,6 +10,7 @@ from tools.tools import FullLogger, load_environmental_variables, log_exception
 from user_component.car_metadata_message import CarMetaDataMessage
 from user_component.car_state_message import CarStateMessage
 from user_component.user_state_message import UserStateMessage
+from station_component.PowerOutput_message import PowerOutputMessage
 from datetime import datetime
 
 # initialize logging object for the module
@@ -92,14 +93,17 @@ class UserComponent(AbstractSimulationComponent):
             (CAR_METADATA_TOPIC, str, "Init.User.CarMetadata")
         )
 
+
+        # Not make multiple topics with the join statements.
+
         self._user_state_topic_base = cast(str, environment[USER_STATE_TOPIC])
         # self._user_state_topic_output = ".".join([self._user_state_topic_base, self.component_name])
 
         self._car_state_topic_base = cast(str, environment[CAR_STATE_TOPIC])
-        self._car_state_topic_output = ".".join([self._car_state_topic_base, self.component_name])
+        # self._car_state_topic_output = ".".join([self._car_state_topic_base, self.component_name])
 
         self._car_metadata_topic_base = cast(str, environment[CAR_METADATA_TOPIC])
-        self._car_metadata_topic_output = ".".join([self._car_metadata_topic_base, self.component_name])     
+        # self._car_metadata_topic_output = ".".join([self._car_metadata_topic_base, self.component_name])     
 
         # The easiest way to ensure that the component will listen to all necessary topics
         # is to set the self._other_topics variable with the list of the topics to listen to.
@@ -186,20 +190,20 @@ class UserComponent(AbstractSimulationComponent):
         
         """
         # Replace by incoming station message
-        if isinstance(message_object, UserStateMessage):
-            # added extra cast to allow Pylance to recognize that message_object is an instance of UserStateMessage
-            message_object = cast(UserStateMessage, message_object)
+        if isinstance(message_object, PowerOutputMessage):
+            # added extra cast to allow Pylance to recognize that message_object is an instance of PowerOutputMessage
+            message_object = cast(PowerOutputMessage, message_object)
             # ignore simple messages from components that have not been registered as input components
             if message_object.source_process_id not in self._input_components:
-                LOGGER.debug(f"Ignoring UserStateMessage from {message_object.source_process_id}")
+                LOGGER.debug(f"Ignoring PowerOutputMessage from {message_object.source_process_id}")
 
             # only take into account the first simple message from each component
             elif message_object.source_process_id in self._current_input_components:
-                LOGGER.info(f"Ignoring new UserStateMessage from {message_object.source_process_id}")
+                LOGGER.info(f"Ignoring new PowerOutputMessage from {message_object.source_process_id}")
 
             else:
                 self._current_input_components.add(message_object.source_process_id)
-                LOGGER.debug(f"Received UserStateMessage from {message_object.source_process_id}")
+                LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
 
                 self._triggering_message_ids.append(message_object.message_id)
                 if not await self.start_epoch():
