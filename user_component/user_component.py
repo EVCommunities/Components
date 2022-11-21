@@ -305,6 +305,7 @@ def create_component() -> UserComponent:
 
     # The cast function here is only used to help Python linters like pyright to recognize the proper type.
     # They are not necessary and can be omitted.
+    # Test
     user_id = cast(int, environment_variables[USER_ID])
     user_name = cast(str, environment_variables[USER_NAME])
     station_id = cast(int, environment_variables[STATION_ID])
