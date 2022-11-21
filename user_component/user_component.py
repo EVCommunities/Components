@@ -70,6 +70,10 @@ class UserComponent(AbstractSimulationComponent):
         self._car_max_power = car_max_power
         self._target_state_of_charge = target_state_of_charge
         self._target_time = target_time
+        self._car_metadata_sent = False
+        self._user_state_sent = False
+        self._power_output_received = False
+        self._car_state_sent = False
 
         # Add checks for the parameters if necessary
         # and set initialization error if there is a problem with the parameters.
@@ -141,6 +145,8 @@ class UserComponent(AbstractSimulationComponent):
            NOTE: this method should be overwritten in any child class that uses epoch specific variables
         """
         self._current_input_components = set()
+        self._user_state_sent = False
+        self._car_state_sent = False
 
     async def process_epoch(self) -> bool:
         """
@@ -158,13 +164,22 @@ class UserComponent(AbstractSimulationComponent):
 
         # Modify with Conditions
         ## Add the send message functions
-        await self._send_car_metadata_message()
+        if(self._latest_epoch == 1 and not self._car_metadata_sent):
+            await self._send_car_metadata_message()
+            self._car_metadata_sent = True
+        
         await self._send_user_state_message()
-        await self._send_car_state_message()
+        self._user_state_sent = True
+
+        if (self._power_output_received):
+            await self._send_car_state_message()
+            self._car_state_sent = True
+            return True
+        
 
         #Modify
         # return True to indicate that the component is finished with the current epoch
-        return True
+        return False
 
 
     async def all_messages_received_for_epoch(self) -> bool:
@@ -189,26 +204,14 @@ class UserComponent(AbstractSimulationComponent):
         
         
         """
-        # Replace by incoming station message
         if isinstance(message_object, PowerOutputMessage):
-            # added extra cast to allow Pylance to recognize that message_object is an instance of PowerOutputMessage
             message_object = cast(PowerOutputMessage, message_object)
-            # ignore simple messages from components that have not been registered as input components
-            if message_object.source_process_id not in self._input_components:
-                LOGGER.debug(f"Ignoring PowerOutputMessage from {message_object.source_process_id}")
-
-            # only take into account the first simple message from each component
-            elif message_object.source_process_id in self._current_input_components:
-                LOGGER.info(f"Ignoring new PowerOutputMessage from {message_object.source_process_id}")
-
-            else:
-                self._current_input_components.add(message_object.source_process_id)
+            if(message_object.user_id == self._user_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
-
-                self._triggering_message_ids.append(message_object.message_id)
-                if not await self.start_epoch():
-                    LOGGER.debug(f"Waiting for other input messages before processing epoch {self._latest_epoch}")
-
+                self._power_output_received = True
+                await self.start_epoch()
+            else:
+                LOGGER.debug(f"Ignoring PowerOutputMessage from {message_object.source_process_id}")
         else:
             LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
 
@@ -305,7 +308,6 @@ def create_component() -> UserComponent:
 
     # The cast function here is only used to help Python linters like pyright to recognize the proper type.
     # They are not necessary and can be omitted.
-    # Test
     user_id = cast(int, environment_variables[USER_ID])
     user_name = cast(str, environment_variables[USER_NAME])
     station_id = cast(int, environment_variables[STATION_ID])
