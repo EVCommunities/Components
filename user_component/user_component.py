@@ -204,6 +204,7 @@ class UserComponent(AbstractSimulationComponent):
         
         
         """
+
         if isinstance(message_object, PowerOutputMessage):
             message_object = cast(PowerOutputMessage, message_object)
             if(message_object.station_id == self._station_id):
@@ -212,6 +213,7 @@ class UserComponent(AbstractSimulationComponent):
                 await self.start_epoch()
             else:
                 LOGGER.debug(f"Ignoring PowerOutputMessage from {message_object.source_process_id}")
+
         else:
             LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
 
