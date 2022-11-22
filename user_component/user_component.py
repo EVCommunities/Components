@@ -206,7 +206,7 @@ class UserComponent(AbstractSimulationComponent):
         """
         if isinstance(message_object, PowerOutputMessage):
             message_object = cast(PowerOutputMessage, message_object)
-            if(message_object.user_id == self._user_id):
+            if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
                 self._power_output_received = True
                 await self.start_epoch()
