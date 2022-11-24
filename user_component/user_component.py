@@ -10,7 +10,8 @@ from tools.tools import FullLogger, load_environmental_variables, log_exception
 from user_component.car_metadata_message import CarMetaDataMessage
 from user_component.car_state_message import CarStateMessage
 from user_component.user_state_message import UserStateMessage
-from station_component.PowerOutput_message import PowerOutputMessage
+from user_component.PowerOutput_message import PowerOutputMessage
+
 from datetime import datetime
 
 # initialize logging object for the module
@@ -207,7 +208,7 @@ class UserComponent(AbstractSimulationComponent):
 
         if isinstance(message_object, PowerOutputMessage):
             message_object = cast(PowerOutputMessage, message_object)
-            if(message_object.user_id == self._user_id):
+            if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
                 self._power_output_received = True
                 await self.start_epoch()
@@ -337,8 +338,10 @@ def create_component() -> UserComponent:
         car_battery_capacity = car_battery_capacity,
         car_model = car_model,
         car_max_power = car_max_power,
-        target_state_of_charge = ctarget_state_of_charge,
-        target_time = target_time
+        target_state_of_charge = target_state_of_charge,
+        target_time = target_time,
+        input_components=input_components,
+        output_delay=output_delay
     )
 
 async def start_component():
