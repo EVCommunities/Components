@@ -1,0 +1,14 @@
+# The component manifest file for the Station component
+
+Name: StationComponentTest
+Type: platform
+Description: "Station Component Test v1.0.1"
+DockerImage: station_component_v2
+Attributes:
+    StationId:
+        Environment: STATION_ID
+        Optional: false
+    MaxPower:
+        Environment: MAX_POWER
+        Optional: false
+
