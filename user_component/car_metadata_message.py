@@ -189,7 +189,7 @@ class CarMetaDataMessage(AbstractResultMessage):
         return isinstance(car_model, str)
 
     @classmethod
-    def _check_car_max_power(cls, car_model: float) -> bool:
+    def _check_car_max_power(cls, car_max_power: float) -> bool:
         return isinstance(car_max_power, float)
 
     @classmethod

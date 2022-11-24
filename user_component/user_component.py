@@ -12,7 +12,6 @@ from user_component.car_state_message import CarStateMessage
 from user_component.user_state_message import UserStateMessage
 from user_component.PowerOutput_message import PowerOutputMessage
 
-from datetime import datetime
 
 # initialize logging object for the module
 LOGGER = FullLogger(__name__)
@@ -29,8 +28,6 @@ CAR_MAX_POWER = "CAR_MAX_POWER"
 TARGET_STATE_OF_CHARGE = "TARGET_STATE_OF_CHARGE"
 TARGET_TIME = "TARGET_TIME"
 
-INPUT_COMPONENTS = "INPUT_COMPONENTS"
-OUTPUT_DELAY = "OUTPUT_DELAY"
 
 USER_STATE_TOPIC = "USER_STATE_TOPIC"
 CAR_STATE_TOPIC = "CAR_STATE_TOPIC"
@@ -53,9 +50,7 @@ class UserComponent(AbstractSimulationComponent):
         car_model: str,
         car_max_power: float,
         target_state_of_charge: float,
-        target_time: str,
-        input_components: Set[str],
-        output_delay: float):
+        target_time: str):
         
         # Initialize the AbstractSimulationComponent using the values from the environmental variables.
         # This will initialize various variables including the message client for message bus access.    
@@ -86,8 +81,6 @@ class UserComponent(AbstractSimulationComponent):
         # variables to keep track of the components that have provided input within the current epoch
         # and to keep track of the current sum of the input values
 
-        self._current_input_components = set()
-
 
         # Load environmental variables for those parameters that were not given to the constructor.
         # In this template the used topics are set in this way with given default values as an example.
@@ -101,13 +94,13 @@ class UserComponent(AbstractSimulationComponent):
 
         # Not make multiple topics with the join statements.
 
-        self._user_state_topic_base = cast(str, environment[USER_STATE_TOPIC])
+        self._user_state_topic = cast(str, environment[USER_STATE_TOPIC])
         # self._user_state_topic_output = ".".join([self._user_state_topic_base, self.component_name])
 
-        self._car_state_topic_base = cast(str, environment[CAR_STATE_TOPIC])
+        self._car_state_topic = cast(str, environment[CAR_STATE_TOPIC])
         # self._car_state_topic_output = ".".join([self._car_state_topic_base, self.component_name])
 
-        self._car_metadata_topic_base = cast(str, environment[CAR_METADATA_TOPIC])
+        self._car_metadata_topic = cast(str, environment[CAR_METADATA_TOPIC])
         # self._car_metadata_topic_output = ".".join([self._car_metadata_topic_base, self.component_name])     
 
         # The easiest way to ensure that the component will listen to all necessary topics
@@ -145,9 +138,9 @@ class UserComponent(AbstractSimulationComponent):
            current epoch. This method is called automatically after receiving an epoch message for a new epoch.
            NOTE: this method should be overwritten in any child class that uses epoch specific variables
         """
-        self._current_input_components = set()
         self._user_state_sent = False
         self._car_state_sent = False
+        self._power_output_received = False
 
     async def process_epoch(self) -> bool:
         """
@@ -160,17 +153,16 @@ class UserComponent(AbstractSimulationComponent):
         TODO: add proper description specific for this component.
         """
 
-        # send the output message
-        await asyncio.sleep(self._output_delay)
 
         # Modify with Conditions
         ## Add the send message functions
-        if(self._latest_epoch == 1 and not self._car_metadata_sent):
+        if(not self._car_metadata_sent and self._latest_epoch == 1):
             await self._send_car_metadata_message()
             self._car_metadata_sent = True
-        
-        await self._send_user_state_message()
-        self._user_state_sent = True
+            
+        if(not self._user_state_sent):
+            await self._send_user_state_message()
+            self._user_state_sent = True
 
         if (self._power_output_received):
             await self._send_car_state_message()
@@ -184,29 +176,14 @@ class UserComponent(AbstractSimulationComponent):
 
 
     async def all_messages_received_for_epoch(self) -> bool:
-        """
-        Returns True, if all the messages required to start calculations for the current epoch have been received.
-        Checks only that all the required information is available.
-        Does not check any other conditions like the simulation state.
-        NOTE: this method should be overwritten in any child class that needs more
-        information than just the Epoch message.
-        TODO: add proper description specific for this component.
-        """
-        return self._input_components == self._current_input_components
+        return True
 
 
     async def general_message_handler(self, message_object: Union[BaseMessage, Any], message_routing_key: str) -> None:
-        """
-        Handles the incoming messages. message_routing_key is the topic for the message.
-        Assumes that the messages are not of type SimulationStateMessage or EpochMessage.
-        NOTE: this method should be overwritten in any child class that
-        listens to messages other than SimState or Epoch messages.
-        TODO: add proper description specific for this component.
-        
-        
-        """
 
+        LOGGER.info("message handler.")
         if isinstance(message_object, PowerOutputMessage):
+            LOGGER.info("message handler.")
             message_object = cast(PowerOutputMessage, message_object)
             if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
@@ -219,7 +196,7 @@ class UserComponent(AbstractSimulationComponent):
             LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
 
     async def _send_user_state_message(self):
-
+        LOGGER.info("user state message sent")
         try:
             user_state_message = self._message_generator.get_message(
                 UserStateMessage,
@@ -231,7 +208,7 @@ class UserComponent(AbstractSimulationComponent):
             )
 
             await self._rabbitmq_client.send_message(
-                topic_name=self._user_state_topic_output,
+                topic_name=self._user_state_topic,
                 message_bytes= user_state_message.bytes()
             )
 
@@ -241,7 +218,7 @@ class UserComponent(AbstractSimulationComponent):
             await self.send_error_message("Internal error when creating result message.")
 
     async def _send_car_state_message(self):
-
+        LOGGER.info("car state message sent")
         try:
             car_state_message = self._message_generator.get_message(
                 CarStateMessage,
@@ -253,7 +230,7 @@ class UserComponent(AbstractSimulationComponent):
             )
 
             await self._rabbitmq_client.send_message(
-                topic_name=self._car_state_topic_output,
+                topic_name=self._car_state_topic,
                 message_bytes= car_state_message.bytes()
             )
 
@@ -263,7 +240,7 @@ class UserComponent(AbstractSimulationComponent):
             await self.send_error_message("Internal error when creating result message.")
 
     async def _send_car_metadata_message(self):
-
+        LOGGER.info("car metadata message sent")
         try:
             car_metadata_message = self._message_generator.get_message(
                 CarMetaDataMessage,
@@ -279,7 +256,7 @@ class UserComponent(AbstractSimulationComponent):
             )
 
             await self._rabbitmq_client.send_message(
-                topic_name=self._car_metadata_topic_output,
+                topic_name=self._car_metadata_topic,
                 message_bytes= car_metadata_message.bytes()
             )
 
@@ -292,7 +269,7 @@ def create_component() -> UserComponent:
     """
     TODO: add proper description specific for this component.
     """
-
+    LOGGER.info("create user component")
     # Read the parameters for the component from the environment variables.
     environment_variables = load_environmental_variables(
         (USER_ID, int, 0),   
@@ -303,9 +280,7 @@ def create_component() -> UserComponent:
         (CAR_MODEL, str, ""),
         (CAR_MAX_POWER, float, 0.0),
         (TARGET_STATE_OF_CHARGE, float, 0.0),
-        (TARGET_TIME, str, ""),
-        (INPUT_COMPONENTS, str, ""),  # the comma-separated list of component names that provide input
-        (OUTPUT_DELAY, float, 0.0)    # delay in seconds before sending the result message for the epoch
+        (TARGET_TIME, str, "")
     )
 
 
@@ -321,13 +296,6 @@ def create_component() -> UserComponent:
     target_state_of_charge = cast(str, environment_variables[TARGET_STATE_OF_CHARGE])
     target_time = cast(str, environment_variables[TARGET_TIME])
 
-    # put the input components to a set, only consider component with non-empty names
-    input_components = {
-        input_component
-        for input_component in cast(str, environment_variables[INPUT_COMPONENTS]).split(",")
-        if input_component
-    }
-    output_delay = cast(float, environment_variables[OUTPUT_DELAY])
 
     # Create and return a new SimpleComponent object using the values from the environment variables
     return UserComponent(
@@ -339,9 +307,7 @@ def create_component() -> UserComponent:
         car_model = car_model,
         car_max_power = car_max_power,
         target_state_of_charge = target_state_of_charge,
-        target_time = target_time,
-        input_components=input_components,
-        output_delay=output_delay
+        target_time = target_time
     )
 
 async def start_component():
@@ -355,6 +321,7 @@ async def start_component():
     # Note, that any exceptions thrown in async functions will not be caught here.
     # Instead they should get logged as warnings but otherwise should not crash the component.
     try:
+        LOGGER.debug("start user component")
         user_component = create_component()
 
         # The component will only start listening to the message bus once the start() method has been called.
