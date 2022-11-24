@@ -14,9 +14,13 @@ class PowerOutputMessage(AbstractResultMessage):
     POWER_OUTPUT_ATTRIBUTE = "PowerOutput"
     POWER_OUTPUT_PROPERTY = "power_output"
 
+    STATION_ID_ATTRIBUTE = "StationID"
+    STATION_ID_PROPERTY = "station_id"
+
     # all attributes specific that are added to the AbstractResult should be introduced here
     MESSAGE_ATTRIBUTES = {
-        POWER_OUTPUT_ATTRIBUTE: POWER_OUTPUT_PROPERTY
+        POWER_OUTPUT_ATTRIBUTE: POWER_OUTPUT_PROPERTY,
+        STATION_ID_ATTRIBUTE: STATION_ID_PROPERTY
     }
     # list all attributes that are optional here (use the JSON attribute names)
     OPTIONAL_ATTRIBUTES = []
@@ -59,15 +63,24 @@ class PowerOutputMessage(AbstractResultMessage):
     def power_output(self) -> int:
         return self.__power_output
 
+    @property
+    def station_id(self) -> str:
+        return self.__station_id
+
 
     @power_output.setter
     def power_output(self, power_output: int):
         self.__power_output = power_output
 
+    @station_id.setter
+    def station_id(self, station_id: str):
+        self.__station_id = station_id
+
     def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
             isinstance(other, PowerOutputMessage) and
+            self.station_id == other.station_id and
             self.power_output == other.power_output
         )
 
