@@ -7,10 +7,10 @@ from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
 
 # import all the required messages from installed libraries
-from user_component.car_metadata_message import CarMetaDataMessage
-from user_component.car_state_message import CarStateMessage
-from user_component.user_state_message import UserStateMessage
-from user_component.PowerOutput_message import PowerOutputMessage
+from messages.car_metadata_message import CarMetaDataMessage
+from messages.car_state_message import CarStateMessage
+from messages.user_state_message import UserStateMessage
+from messages.PowerOutput_message import PowerOutputMessage
 
 
 # initialize logging object for the module
