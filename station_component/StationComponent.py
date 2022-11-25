@@ -9,9 +9,9 @@ from tools.exceptions.messages import MessageError
 from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
 
-from station_component.StationState_message import StationStateMessage
-from station_component.PowerOutput_message import PowerOutputMessage
-from station_component.PowerRequirement_message import PowerRequirementMessage
+from messages.StationState_message import StationStateMessage
+from messages.PowerOutput_message import PowerOutputMessage
+from messages.PowerRequirement_message import PowerRequirementMessage
 
 
 LOGGER = FullLogger(__name__)

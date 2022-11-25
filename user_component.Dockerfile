@@ -8,6 +8,7 @@ RUN mkdir -p /user_component
 RUN mkdir -p /init
 RUN mkdir -p /logs
 RUN mkdir -p /simulation-tools
+RUN mkdir -p /messages
 
 # install the python libraries inside the Docker image
 COPY requirements.txt /requirements.txt
@@ -16,8 +17,10 @@ RUN pip install -r /requirements.txt
 
 # copy the required directories with their content to the Docker image
 COPY user_component/ /user_component/
+COPY messages/ /messages/
 COPY init/ /init/
 COPY simulation-tools/ /simulation-tools/
+
 
 # set the working directory inside the Docker image
 WORKDIR /
