@@ -115,6 +115,9 @@ class UserComponent(AbstractSimulationComponent):
         # The base class contains several variables that can be used in the child class.
         # The variable list below is not an exhaustive list but contains the most useful variables.
 
+        if self.start_message is not None:
+            LOGGER.info("START MESSAGE")
+            LOGGER.info(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys())
         # Variables that should only be READ in the child class:
         # - self.simulation_id               the simulation id
         # - self.component_name              the component name
