@@ -114,7 +114,8 @@ class ICComponent(AbstractSimulationComponent):
         """
         # Modify with Conditions
         ## Add the send message functions
-        
+        await self._send_power_requirement_message()
+        return True
         # TODO : Implement logic for sending messages
 
         #Modify
@@ -129,9 +130,15 @@ class ICComponent(AbstractSimulationComponent):
         LOGGER.info("message handler.")
         if isinstance(message_object, CarMetaDataMessage):
             message_object = cast(CarMetaDataMessage, message_object)
+            carMetaDatainfo = (message_object.user_id, message_object.user_name, message_object.station_id, message_object.state_of_charge, message_object.car_battery_capacity, message_object.car_model, message_object.car_max_power)
+            self._users.append(carMetaDatainfo)
+            LOGGER.info(len(self._users))
             self._car_metadata_received = True
         elif isinstance(message_object, StationStateMessage):
             message_object = cast(StationStateMessage, message_object)
+            stationInfo = (message_object.station_id, message_object.max_power)
+            self._stations.append(stationInfo)
+            LOGGER.info(len(self._stations))
             self._station_state_received = True
         elif isinstance(message_object, UserStateMessage):
             message_object = cast(UserStateMessage, message_object)
@@ -139,6 +146,7 @@ class ICComponent(AbstractSimulationComponent):
         elif isinstance(message_object, CarStateMessage):
             message_object = cast(CarStateMessage, message_object)
             self._car_state_received = True
+            await self.start_epoch()
         else:
             LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
 
@@ -151,21 +159,22 @@ class ICComponent(AbstractSimulationComponent):
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
                 #TODO: implement station id logic
-                StationId=1,
-                TargetTime=self._target_time
+                StationId = '1',
+                Power = 80
             )
 
             await self._rabbitmq_client.send_message(
                 topic_name=self._power_requirement_topic,
                 message_bytes= power_requirement_message.bytes()
             )
+            
 
         except (ValueError, TypeError, MessageError) as message_error:
             # When there is an exception while creating the message, it is in most cases a serious error.
             log_exception(message_error)
             await self.send_error_message("Internal error when creating result message.")
 
-# TODO: Implement create and start component
+
 
 def create_component() -> ICComponent:
     LOGGER.info("create IC component")
