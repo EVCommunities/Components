@@ -30,6 +30,8 @@ CAR_MAX_POWER = "CAR_MAX_POWER"
 TARGET_STATE_OF_CHARGE = "TARGET_STATE_OF_CHARGE"
 TARGET_TIME = "TARGET_TIME"
 MAX_POWER = "MAX_POWER"
+USERS = "USERS"
+STATIONS = "STATIONS"
 
 USER_STATE_TOPIC = "USER_STATE_TOPIC"
 CAR_STATE_TOPIC = "CAR_STATE_TOPIC"
@@ -55,7 +57,7 @@ class ICComponent(AbstractSimulationComponent):
 
         # Set the object variables for the extra parameters.
         self._users = users
-        self._stations= stations
+        self._stations = stations
         self._car_metadata_received = False
         self._station_state_received = False
         self._user_state_received = False
@@ -164,3 +166,47 @@ class ICComponent(AbstractSimulationComponent):
             await self.send_error_message("Internal error when creating result message.")
 
 # TODO: Implement create and start component
+
+def create_component() -> ICComponent:
+    LOGGER.info("create IC component")
+    environment_variables = load_environmental_variables(
+        (USERS, list, []),   
+        (STATIONS, list, [])
+    )
+    users = cast(list, environment_variables[USERS])
+    stations = cast(list, environment_variables[STATIONS])
+
+    return ICComponent(
+        users = users,
+        stations = stations
+    )
+
+
+async def start_component():
+    """
+    Creates and starts a IC component.
+    """
+    # A general exception handler that should catch any unhandled error that would otherwise crash the program.
+    # Having this might be especially useful when testing components in large simulations and some component(s)
+    # crash without giving any output.
+    #
+    # Note, that any exceptions thrown in async functions will not be caught here.
+    # Instead they should get logged as warnings but otherwise should not crash the component.
+    try:
+        LOGGER.debug("start ic component")
+        ic_component = create_component()
+
+        # The component will only start listening to the message bus once the start() method has been called.
+        await ic_component.start()
+
+        # Wait in the loop until the component has stopped itself.
+        while not ic_component.is_stopped:
+            await asyncio.sleep(TIMEOUT)
+
+    except BaseException as error:  # pylint: disable=broad-except
+        log_exception(error)
+        LOGGER.info("Component will now exit.")
+
+
+if __name__ == "__main__":
+    asyncio.run(start_component())
