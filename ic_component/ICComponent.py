@@ -114,8 +114,9 @@ class ICComponent(AbstractSimulationComponent):
         """
         # Modify with Conditions
         ## Add the send message functions
-        await self._send_power_requirement_message()
-        return True
+        if(self._user_state_received):
+            await self._send_power_requirement_message()
+            return True
         # TODO : Implement logic for sending messages
 
         #Modify
@@ -134,18 +135,24 @@ class ICComponent(AbstractSimulationComponent):
             self._users.append(carMetaDatainfo)
             LOGGER.info(len(self._users))
             self._car_metadata_received = True
+            await self.start_epoch()
         elif isinstance(message_object, StationStateMessage):
             message_object = cast(StationStateMessage, message_object)
             stationInfo = (message_object.station_id, message_object.max_power)
             self._stations.append(stationInfo)
             LOGGER.info(len(self._stations))
             self._station_state_received = True
+            await self.start_epoch()
         elif isinstance(message_object, UserStateMessage):
             message_object = cast(UserStateMessage, message_object)
             self._user_state_received = True
+            LOGGER.info("USER STATE MESSAGE")
+            LOGGER.info(self._user_state_received)
+            await self.start_epoch()
         elif isinstance(message_object, CarStateMessage):
             message_object = cast(CarStateMessage, message_object)
             self._car_state_received = True
+            LOGGER.info(self._car_state_received)
             await self.start_epoch()
         else:
             LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
@@ -159,7 +166,7 @@ class ICComponent(AbstractSimulationComponent):
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
                 #TODO: implement station id logic
-                StationId = '1',
+                StationId = "1",
                 Power = 80
             )
 

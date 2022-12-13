@@ -67,7 +67,7 @@ class CarStateMessage(AbstractResultMessage):
     def user_id(self) -> int:
         return self.__user_id
     @property
-    def station_id(self) -> int:
+    def station_id(self) -> str:
         return self.__station_id
     @property
     def state_of_charge(self) -> float:
@@ -81,7 +81,7 @@ class CarStateMessage(AbstractResultMessage):
             raise MessageValueError(f"Invalid value for UserId: {user_id}")
 
     @station_id.setter
-    def station_id(self, station_id: int):
+    def station_id(self, station_id: str):
         if self._check_station_id(station_id):
             self.__station_id = station_id
         else:
@@ -108,8 +108,8 @@ class CarStateMessage(AbstractResultMessage):
         return isinstance(user_id, int)
 
     @classmethod
-    def _check_station_id(cls, station_id: int) -> bool:
-        return isinstance(station_id, int)
+    def _check_station_id(cls, station_id: str) -> bool:
+        return isinstance(station_id, str)
 
     @classmethod
     def _check_state_of_charge(cls, state_of_charge: float) -> bool:
