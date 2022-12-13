@@ -19,7 +19,7 @@ class PowerOutputMessage(AbstractResultMessage):
     POWER_OUTPUT_ATTRIBUTE = "PowerOutput"
     POWER_OUTPUT_PROPERTY = "power_output"
 
-    STATION_ID_ATTRIBUTE = "StationID"
+    STATION_ID_ATTRIBUTE = "StationId"
     STATION_ID_PROPERTY = "station_id"
 
     # all attributes specific that are added to the AbstractResult should be introduced here

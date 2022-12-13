@@ -49,7 +49,7 @@ class UserComponent(AbstractSimulationComponent):
         self,
         user_id: int,
         user_name: str,
-        station_id: int,
+        station_id: str,
         state_of_charge: float,
         car_battery_capacity: float,
         car_model: str,
@@ -114,7 +114,7 @@ class UserComponent(AbstractSimulationComponent):
         
         #recieve topic
         self._other_topics = [
-            "Station.PowerOutput"
+            "PowerOutputTopic"
         ]
 
         # The base class contains several variables that can be used in the child class.
@@ -193,8 +193,12 @@ class UserComponent(AbstractSimulationComponent):
         if isinstance(message_object, PowerOutputMessage):
             LOGGER.info("message handler.")
             message_object = cast(PowerOutputMessage, message_object)
+            LOGGER.info(message_object)
+            LOGGER.info(message_object.station_id)
+            LOGGER.info(self._station_id)
             if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
+                LOGGER.info("PowerOUTPUT message processed")
                 self._power_output_received = True
                 await self.start_epoch()
             else:
@@ -282,7 +286,7 @@ def create_component() -> UserComponent:
     environment_variables = load_environmental_variables(
         (USER_ID, int, 0),   
         (USER_NAME, str, ""),
-        (STATION_ID, int, 0),
+        (STATION_ID, str, ""),
         (STATE_OF_CHARGE, float, 0.0),
         (CAR_BATTERY_CAPACITY, float, 0.0),
         (CAR_MODEL, str, ""),
@@ -296,7 +300,7 @@ def create_component() -> UserComponent:
     # They are not necessary and can be omitted.
     user_id = cast(int, environment_variables[USER_ID])
     user_name = cast(str, environment_variables[USER_NAME])
-    station_id = cast(int, environment_variables[STATION_ID])
+    station_id = cast(str, environment_variables[STATION_ID])
     state_of_charge = cast(float, environment_variables[STATE_OF_CHARGE])
     car_battery_capacity = cast(float, environment_variables[CAR_BATTERY_CAPACITY])
     car_model = cast(str, environment_variables[CAR_MODEL])

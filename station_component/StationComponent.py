@@ -85,7 +85,7 @@ class StationComponent(AbstractSimulationComponent):
                 StationStateMessage,
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
-                StationID=self._station_id,
+                StationId=self._station_id,
                 MaxPower=self._max_power
             )
 
@@ -108,8 +108,8 @@ class StationComponent(AbstractSimulationComponent):
                 PowerOutputMessage,
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
-                StationID=self._station_id,
-                MaxPower=self._max_power
+                StationId=self._station_id,
+                PowerOutput=self._max_power
             )
 
             await self._rabbitmq_client.send_message(
@@ -130,6 +130,7 @@ class StationComponent(AbstractSimulationComponent):
         LOGGER.info("message handler.")
         if isinstance(message_object, PowerRequirementMessage):
             message_object = cast(PowerRequirementMessage, message_object)
+            LOGGER.info(message_object)
             if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerRequirementMessage from {message_object.source_process_id}")
                 self._power_requirement_recevied = True

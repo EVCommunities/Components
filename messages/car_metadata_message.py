@@ -90,7 +90,7 @@ class CarMetaDataMessage(AbstractResultMessage):
     def user_name(self) -> str:
         return self.__user_name
     @property
-    def station_id(self) -> int:
+    def station_id(self) -> str:
         return self.__station_id
     @property
     def state_of_charge(self) -> float:
@@ -122,7 +122,7 @@ class CarMetaDataMessage(AbstractResultMessage):
             raise MessageValueError(f"Invalid value for UserName: {user_name}")
 
     @station_id.setter
-    def station_id(self, station_id: int):
+    def station_id(self, station_id: str):
         if self._check_station_id(station_id):
             self.__station_id = station_id
         else:
@@ -178,8 +178,8 @@ class CarMetaDataMessage(AbstractResultMessage):
         return isinstance(user_name, str)
 
     @classmethod
-    def _check_station_id(cls, station_id: int) -> bool:
-        return isinstance(station_id, int)
+    def _check_station_id(cls, station_id: str) -> bool:
+        return isinstance(station_id, str)
 
     @classmethod
     def _check_state_of_charge(cls, state_of_charge: float) -> bool:
