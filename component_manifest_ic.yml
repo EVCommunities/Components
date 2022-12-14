@@ -1,0 +1,18 @@
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
+
+# The component manifest file for the IC component
+
+Name: ICComponent
+Type: platform
+Description: "IC Component"
+DockerImage: iccomponentlocal
+Attributes:
+    Users:
+        Environment: USERS
+        Optional: false
+    Stations:
+        Environment: STATIONS
+        Optional: false
+

@@ -1,0 +1,46 @@
+# The component manifest file for the Complex test component
+
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
+
+Name: UserComponent
+Type: platform
+Description: "User component for the Decoupled Simulation Platform"
+DockerImage: usercomponentlocal
+Attributes:
+    UserId:
+        Environment: USER_ID
+        Optional: false
+    UserName:
+        Environment: USER_NAME
+        Optional: false
+    StationId:
+        Environment: STATION_ID
+        Optional: false
+    StateOfCharge:
+        Environment: STATE_OF_CHARGE
+        Optional: false
+    CarBatteryCapacity:
+        Environment: CAR_BATTERY_CAPACITY
+        Optional: false
+    CarModel:
+        Environment: CAR_MODEL
+        Optional: false
+    CarMaxPower:
+        Environment: CAR_MAX_POWER
+        Optional: false
+    TargetStateOfCharge:
+        Environment: TARGET_STATE_OF_CHARGE
+        Optional: false
+    TargetTime:
+        Environment: TARGET_TIME
+        Optional: false
+    InputComponents:
+        Environment: INPUT_COMPONENTS
+        Optional: true
+        Default: ""
+    OutputDelay:
+        Environment: OUTPUT_DELAY
+        Optional: true
+        Default: 0.0

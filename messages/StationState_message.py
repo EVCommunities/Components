@@ -1,3 +1,7 @@
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>
+
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
@@ -11,7 +15,7 @@ class StationStateMessage(AbstractResultMessage):
     CLASS_MESSAGE_TYPE = "StationState"
     MESSAGE_TYPE_CHECK = True
 
-    STATION_ID_ATTRIBUTE = "StationID"
+    STATION_ID_ATTRIBUTE = "StationId"
     STATION_ID_PROPERTY = "station_id"
 
     MAX_POWER_ATTRIBUTE = "MaxPower"

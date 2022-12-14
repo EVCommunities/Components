@@ -1,3 +1,7 @@
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
+
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
@@ -85,7 +89,7 @@ class CarMetaDataMessage(AbstractResultMessage):
     def user_name(self) -> str:
         return self.__user_name
     @property
-    def station_id(self) -> int:
+    def station_id(self) -> str:
         return self.__station_id
     @property
     def state_of_charge(self) -> float:
@@ -117,7 +121,7 @@ class CarMetaDataMessage(AbstractResultMessage):
             raise MessageValueError(f"Invalid value for UserName: {user_name}")
 
     @station_id.setter
-    def station_id(self, station_id: int):
+    def station_id(self, station_id: str):
         if self._check_station_id(station_id):
             self.__station_id = station_id
         else:
@@ -173,8 +177,8 @@ class CarMetaDataMessage(AbstractResultMessage):
         return isinstance(user_name, str)
 
     @classmethod
-    def _check_station_id(cls, station_id: int) -> bool:
-        return isinstance(station_id, int)
+    def _check_station_id(cls, station_id: str) -> bool:
+        return isinstance(station_id, str)
 
     @classmethod
     def _check_state_of_charge(cls, state_of_charge: float) -> bool:
@@ -189,7 +193,7 @@ class CarMetaDataMessage(AbstractResultMessage):
         return isinstance(car_model, str)
 
     @classmethod
-    def _check_car_max_power(cls, car_model: float) -> bool:
+    def _check_car_max_power(cls, car_max_power: float) -> bool:
         return isinstance(car_max_power, float)
 
     @classmethod

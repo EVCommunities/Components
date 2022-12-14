@@ -1,3 +1,7 @@
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>
+
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
@@ -5,18 +9,22 @@ from tools.exceptions.messages import MessageError, MessageValueError
 from tools.messages import AbstractResultMessage
 
 
-class PowerOutputMessage(AbstractResultMessage):
+class PowerRequirementMessage(AbstractResultMessage):
     """Description for the SimpleMessage class"""
 
-    CLASS_MESSAGE_TYPE = "PowerOutput"
+    CLASS_MESSAGE_TYPE = "PowerRequirement"
     MESSAGE_TYPE_CHECK = True
 
-    POWER_OUTPUT_ATTRIBUTE = "PowerOutput"
-    POWER_OUTPUT_PROPERTY = "power_output"
+    POWER_ATTRIBUTE = "Power"
+    POWER_PROPERTY = "power"
+
+    STATION_ID_ATTRIBUTE = "StationId"
+    STATION_ID_PROPERTY = "station_id"
 
     # all attributes specific that are added to the AbstractResult should be introduced here
     MESSAGE_ATTRIBUTES = {
-        POWER_OUTPUT_ATTRIBUTE: POWER_OUTPUT_PROPERTY
+        POWER_ATTRIBUTE: POWER_PROPERTY,
+        STATION_ID_ATTRIBUTE: STATION_ID_PROPERTY
     }
     # list all attributes that are optional here (use the JSON attribute names)
     OPTIONAL_ATTRIBUTES = []
@@ -56,31 +64,36 @@ class PowerOutputMessage(AbstractResultMessage):
 
 
     @property
-    def power_output(self) -> int:
-        return self.__power_output
+    def power(self) -> int:
+        return self.__power
 
+    @property
+    def station_id(self) -> str:
+        return self.__station_id
 
-    @power_output.setter
-    def power_output(self, power_output: int):
-        self.__power_output = power_output
+    @power.setter
+    def power(self, power: int):
+        self.__power = power
+
+    @station_id.setter
+    def station_id(self, station_id: str):
+        self.__station_id = station_id
 
     def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
-            isinstance(other, PowerOutputMessage) and
-            self.power_output == other.power_output
+            isinstance(other, PowerRequirementMessage) and
+            self.power_output == other.power_output and
+            self.station_id == other.station_id
         )
 
-    @classmethod
-    def _check_station_id(cls, power_output: str) -> bool:
-        return isinstance(power_output, str)
 
     @classmethod
-    def _check_power_output(cls, power_output: int) -> bool:
-        return isinstance(power_output, int)
+    def _check_power(cls, power: int) -> bool:
+        return isinstance(power, int)
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]) -> Optional[PowerOutputMessage]:
+    def from_json(cls, json_message: Dict[str, Any]) -> Optional[PowerRequirementMessage]:
         """TODO: description for the from_json method"""
         try:
             message_object = cls(**json_message)
@@ -89,4 +102,4 @@ class PowerOutputMessage(AbstractResultMessage):
             return None
 
 
-PowerOutputMessage.register_to_factory()
+PowerRequirementMessage.register_to_factory()

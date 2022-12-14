@@ -1,4 +1,6 @@
-# Author(s): Chalith Tharuka <chalith.haputhantrige@tuni.fi>
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>
 
 import asyncio
 import traceback
@@ -9,9 +11,10 @@ from tools.exceptions.messages import MessageError
 from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
 
-from station_component.StationState_message import StationStateMessage
-from station_component.PowerOutput_message import PowerOutputMessage
-# Need to import PowerRequirementMessage
+from messages.StationState_message import StationStateMessage
+from messages.PowerOutput_message import PowerOutputMessage
+from messages.PowerRequirement_message import PowerRequirementMessage
+
 
 LOGGER = FullLogger(__name__)
 
@@ -31,8 +34,8 @@ class StationComponent(AbstractSimulationComponent):
         
         super().__init__()
 
-        self.station_id = station_id
-        self.max_power = max_power
+        self._station_id = station_id
+        self._max_power = max_power
 
 
         self._station_state = False
@@ -54,7 +57,9 @@ class StationComponent(AbstractSimulationComponent):
 
 
     def clear_epoch_variables(self) -> None:
-        self._input_components = set()
+        self._station_state = False
+        self._power_requirement_recevied = False
+        self._power_required = None
 
     async def process_epoch(self) -> bool:
 
@@ -79,7 +84,7 @@ class StationComponent(AbstractSimulationComponent):
                 StationStateMessage,
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
-                StationID=self._station_id,
+                StationId=self._station_id,
                 MaxPower=self._max_power
             )
 
@@ -102,8 +107,8 @@ class StationComponent(AbstractSimulationComponent):
                 PowerOutputMessage,
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
-                StationID=self._station_id,
-                MaxPower=self._max_power
+                StationId=self._station_id,
+                PowerOutput=self._max_power
             )
 
             await self._rabbitmq_client.send_message(
@@ -121,10 +126,11 @@ class StationComponent(AbstractSimulationComponent):
 
     async def general_message_handler(self, message_object: Union[BaseMessage, Any],
                                       message_routing_key: str) -> None:
-                                
+        LOGGER.info("message handler.")
         if isinstance(message_object, PowerRequirementMessage):
             message_object = cast(PowerRequirementMessage, message_object)
-            if(message_object.station_id == self.station_id):
+            LOGGER.info(message_object)
+            if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerRequirementMessage from {message_object.source_process_id}")
                 self._power_requirement_recevied = True
                 await self.start_epoch()

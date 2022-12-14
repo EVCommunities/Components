@@ -1,0 +1,18 @@
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>
+
+# The component manifest file for the Station component
+
+Name: StationComponent
+Type: platform
+Description: "Station Component Test v1.0.1"
+DockerImage: station_component_v2
+Attributes:
+    StationId:
+        Environment: STATION_ID
+        Optional: false
+    MaxPower:
+        Environment: MAX_POWER
+        Optional: false
+

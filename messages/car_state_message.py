@@ -1,30 +1,34 @@
+# Copyright 2022 Tampere University
+# This source code is licensed under the MIT license. See LICENSE in the repository root directory.
+# Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
+
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from tools.exceptions.messages import MessageError, MessageValueError
 from tools.messages import AbstractResultMessage
-# Confirm usage
-from datetime import datetime
 
-class UserStateMessage(AbstractResultMessage):
-    CLASS_MESSAGE_TYPE = "UserState"
+
+class CarStateMessage(AbstractResultMessage):
+    CLASS_MESSAGE_TYPE = "CarState"
     MESSAGE_TYPE_CHECK = True
 
     USER_ID_ATTRIBUTE = "UserId"
     USER_ID_PROPERTY = "user_id"
 
-    #Modified from TARGET_BATTERY
-    TARGET_STATE_OF_CHARGE_ATTRIBUTE = "TargetStateOfCharge"
-    TARGET_STATE_OF_CHARGE_PROPERTY = "target_state_of_charge"
+    STATION_ID_ATTRIBUTE = "StationId"
+    STATION_ID_PROPERTY = "station_id"
 
-    #Modified from LEAVING_TIME
-    TARGET_TIME_ATTRIBUTE = "TargetTime"
-    TARGET_TIME_PROPERTY = "target_time"
+    #Added
+    STATE_OF_CHARGE_ATTRIBUTE = "StateOfCharge"
+    STATE_OF_CHARGE_PROPERTY = "state_of_charge"
 
+
+    # all attributes specific that are added to the AbstractResult should be introduced here
     MESSAGE_ATTRIBUTES = {
         USER_ID_ATTRIBUTE: USER_ID_PROPERTY,
-        TARGET_STATE_OF_CHARGE_ATTRIBUTE: TARGET_STATE_OF_CHARGE_PROPERTY,
-        TARGET_TIME_ATTRIBUTE: TARGET_TIME_PROPERTY
+        STATION_ID_ATTRIBUTE: STATION_ID_PROPERTY,
+        STATE_OF_CHARGE_ATTRIBUTE: STATE_OF_CHARGE_PROPERTY
     }
     # list all attributes that are optional here (use the JSON attribute names)
     OPTIONAL_ATTRIBUTES = []
@@ -58,18 +62,15 @@ class UserStateMessage(AbstractResultMessage):
         TIMESERIES_BLOCK_ATTRIBUTES
     )
 
-
     @property
     def user_id(self) -> int:
         return self.__user_id
-    
     @property
-    def target_state_of_charge(self) -> float:
-        return self.__target_state_of_charge
-
+    def station_id(self) -> str:
+        return self.__station_id
     @property
-    def target_time(self) -> str:
-        return self.__target_time  
+    def state_of_charge(self) -> float:
+        return self.__state_of_charge      
 
     @user_id.setter
     def user_id(self, user_id: int):
@@ -78,27 +79,27 @@ class UserStateMessage(AbstractResultMessage):
         else:
             raise MessageValueError(f"Invalid value for UserId: {user_id}")
 
-    @target_state_of_charge.setter
-    def target_state_of_charge(self, target_state_of_charge: float):
-        if self._check_target_state_of_charge(target_state_of_charge):
-            self.__target_state_of_charge = target_state_of_charge
+    @station_id.setter
+    def station_id(self, station_id: str):
+        if self._check_station_id(station_id):
+            self.__station_id = station_id
         else:
-            raise MessageValueError(f"Invalid value for TargetStateOfCharge: {target_state_of_charge}")
+            raise MessageValueError(f"Invalid value for StationId: {station_id}")
 
-    @target_time.setter
-    def target_time(self, target_time: str):
-        if self._check_target_time(target_time):
-            self.__target_time = target_time
+    @state_of_charge.setter
+    def state_of_charge(self, state_of_charge: float):
+        if self._check_state_of_charge(state_of_charge):
+            self.__state_of_charge = state_of_charge
         else:
-            raise MessageValueError(f"Invalid value for TargetStateOfCharge: {target_time}")
+            raise MessageValueError(f"Invalid value for StateOfCharge: {state_of_charge}")
 
     def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
-            isinstance(other, UserStateMessage) and
+            isinstance(other, CarStateMessage) and
             self.user_id == other.user_id and 
-            self.target_state_of_charge == other.target_state_of_charge and 
-            self.target_time == other.target_time
+            self.station_id == other.station_id and 
+            self.state_of_charge == other.state_of_charge
         )
 
     @classmethod
@@ -106,19 +107,19 @@ class UserStateMessage(AbstractResultMessage):
         return isinstance(user_id, int)
 
     @classmethod
-    def _check_target_state_of_charge(cls, target_state_of_charge: float) -> bool:
-        return isinstance(target_state_of_charge, float)
+    def _check_station_id(cls, station_id: str) -> bool:
+        return isinstance(station_id, str)
 
     @classmethod
-    def _check_target_time(cls, target_time: str) -> bool:
-        return isinstance(target_time, str)
+    def _check_state_of_charge(cls, state_of_charge: float) -> bool:
+        return isinstance(state_of_charge, float)
 
     @classmethod
-    def from_json(cls, json_message: Dict[str, Any]) -> Optional[UserStateMessage]:
+    def from_json(cls, json_message: Dict[str, Any]) -> Optional[CarStateMessage]:
         try:
             message_object = cls(**json_message)
             return message_object
         except (TypeError, ValueError, MessageError):
             return None
 
-UserStateMessage.register_to_factory()
+CarStateMessage.register_to_factory()
