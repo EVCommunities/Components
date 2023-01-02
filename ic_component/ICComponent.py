@@ -57,10 +57,19 @@ class ICComponent(AbstractSimulationComponent):
         # Set the object variables for the extra parameters.
         self._users = users
         self._stations = stations
+
+        self._total_user_count = 0
+        self._total_station_count = 0
+
         self._car_metadata_received = False
         self._station_state_received = False
         self._user_state_received = False
         self._car_state_received = False
+
+        self._epoch_car_metadata_count = 0
+        self._epoch_station_state_count = 0
+        self._epoch_user_state_count = 0
+        self._epoch_car_state_count = 0
 
         # Add checks for the parameters if necessary
         # and set initialization error if there is a problem with the parameters.
@@ -93,14 +102,24 @@ class ICComponent(AbstractSimulationComponent):
 
         if self.start_message is not None:
             LOGGER.info("START MESSAGE")
-            LOGGER.info(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys())
-            LOGGER.info(self.start_message.get("ProcessParameters", {}).get("StationComponent", {}).keys())
+            LOGGER.info(len(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys()))
+            LOGGER.info(len(self.start_message.get("ProcessParameters", {}).get("StationComponent", {}).keys()))
+            self._total_user_count = len(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys())
+            self._total_station_count = len(self.start_message.get("ProcessParameters", {}).get("StationComponent", {}).keys())
 
     def clear_epoch_variables(self) -> None:
         """Clears all the variables that are used to store information about the received input within the
            current epoch. This method is called automatically after receiving an epoch message for a new epoch.
            NOTE: this method should be overwritten in any child class that uses epoch specific variables
         """
+        self._epoch_station_state_count = 0
+        self._epoch_user_state_count = 0
+        self._epoch_car_state_count = 0
+
+        self._station_state_received = False
+        self._user_state_received = False
+        self._car_state_received = False
+
     async def process_epoch(self) -> bool:
         """
         Process the epoch and do all the required calculations.
@@ -113,8 +132,23 @@ class ICComponent(AbstractSimulationComponent):
         """
         # Modify with Conditions
         ## Add the send message functions
-        if(self._user_state_received):
+        LOGGER.info("Process epoch")
+        LOGGER.info(self._epoch_car_metadata_count)
+        LOGGER.info(self._total_user_count)
+        if(self._epoch_car_metadata_count == self._total_user_count):
+            self._car_metadata_received = True
+            LOGGER.info("All Car Metadata Received")
+            LOGGER.info(self._car_metadata_received)
+
+        if(self._epoch_station_state_count == self._total_station_count and self._car_metadata_received == True):
+            self._station_state_received = True
+
+        if(self._epoch_user_state_count == self._total_user_count and self._station_state_received == True):
+            self._user_state_received = True
             await self._send_power_requirement_message()
+
+        if(self._epoch_car_state_count == self._total_user_count and self._user_state_received == True):
+            self._car_state_received = True
             return True
         # TODO : Implement logic for sending messages
 
@@ -133,25 +167,25 @@ class ICComponent(AbstractSimulationComponent):
             carMetaDatainfo = (message_object.user_id, message_object.user_name, message_object.station_id, message_object.state_of_charge, message_object.car_battery_capacity, message_object.car_model, message_object.car_max_power)
             self._users.append(carMetaDatainfo)
             LOGGER.info(len(self._users))
-            self._car_metadata_received = True
+            self._epoch_car_metadata_count = self._epoch_car_metadata_count + 1
             await self.start_epoch()
         elif isinstance(message_object, StationStateMessage):
             message_object = cast(StationStateMessage, message_object)
             stationInfo = (message_object.station_id, message_object.max_power)
             self._stations.append(stationInfo)
             LOGGER.info(len(self._stations))
-            self._station_state_received = True
+            self._epoch_station_state_count = self._epoch_station_state_count + 1
             await self.start_epoch()
         elif isinstance(message_object, UserStateMessage):
             message_object = cast(UserStateMessage, message_object)
-            self._user_state_received = True
             LOGGER.info("USER STATE MESSAGE")
             LOGGER.info(self._user_state_received)
+            self._epoch_user_state_count = self._epoch_user_state_count + 1
             await self.start_epoch()
         elif isinstance(message_object, CarStateMessage):
             message_object = cast(CarStateMessage, message_object)
-            self._car_state_received = True
             LOGGER.info(self._car_state_received)
+            self._epoch_car_state_count = self._epoch_car_state_count + 1
             await self.start_epoch()
         else:
             LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
@@ -173,7 +207,20 @@ class ICComponent(AbstractSimulationComponent):
                 topic_name=self._power_requirement_topic,
                 message_bytes= power_requirement_message.bytes()
             )
-            
+
+            power_requirement_message = self._message_generator.get_message(
+                PowerRequirementMessage,
+                EpochNumber=self._latest_epoch,
+                TriggeringMessageIds=self._triggering_message_ids,
+                #TODO: implement station id logic
+                StationId = "2",
+                Power = 70
+            )
+
+            await self._rabbitmq_client.send_message(
+                topic_name=self._power_requirement_topic,
+                message_bytes= power_requirement_message.bytes()
+            )            
 
         except (ValueError, TypeError, MessageError) as message_error:
             # When there is an exception while creating the message, it is in most cases a serious error.

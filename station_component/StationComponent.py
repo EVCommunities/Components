@@ -4,6 +4,7 @@
 
 import asyncio
 import traceback
+import random
 from typing import Any, cast, Set, Optional, Union
 
 from tools.components import AbstractSimulationComponent
@@ -108,7 +109,7 @@ class StationComponent(AbstractSimulationComponent):
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
                 StationId=self._station_id,
-                PowerOutput=self._max_power
+                PowerOutput=random.randrange(20, 50, 3)
             )
 
             await self._rabbitmq_client.send_message(
