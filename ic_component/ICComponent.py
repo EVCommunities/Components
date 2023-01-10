@@ -4,6 +4,7 @@
 
 import asyncio
 from typing import Any, cast, Set, Union
+from operator import itemgetter
 
 from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
@@ -73,6 +74,7 @@ class ICComponent(AbstractSimulationComponent):
         self._epoch_station_state_count = 0
         self._epoch_user_state_count = 0
         self._epoch_car_state_count = 0
+        self._used_total_power = 0.0
 
         # Add checks for the parameters if necessary
         # and set initialization error if there is a problem with the parameters.
@@ -118,6 +120,7 @@ class ICComponent(AbstractSimulationComponent):
         self._epoch_station_state_count = 0
         self._epoch_user_state_count = 0
         self._epoch_car_state_count = 0
+        self._used_total_power = 0.0
 
         self._station_state_received = False
         self._user_state_received = False
@@ -147,9 +150,11 @@ class ICComponent(AbstractSimulationComponent):
 
         if(self._epoch_station_state_count == self._total_station_count and self._car_metadata_received == True):
             self._station_state_received = True
+            LOGGER.info("All Station State Received")
 
         if(self._epoch_user_state_count == self._total_user_count and self._station_state_received == True):
             self._user_state_received = True
+            LOGGER.info("All User State Received")
             await self._send_power_requirement_message()
 
         if(self._epoch_car_state_count == self._total_user_count and self._user_state_received == True):
@@ -187,6 +192,11 @@ class ICComponent(AbstractSimulationComponent):
             message_object = cast(UserStateMessage, message_object)
             LOGGER.info("USER STATE MESSAGE")
             LOGGER.info(self._user_state_received)
+            for u in self._users:
+                if u['userId'] == message_object.user_id:
+                    u['targetStateOfCharge'] = message_object.target_state_of_charge
+                    u['targetTime'] = message_object.target_time
+                    LOGGER.info(u)
             self._epoch_user_state_count = self._epoch_user_state_count + 1
             await self.start_epoch()
         elif isinstance(message_object, CarStateMessage):
@@ -199,40 +209,45 @@ class ICComponent(AbstractSimulationComponent):
 
 
     async def _send_power_requirement_message(self):
-        LOGGER.info("power requirement message sent")
-        try:
-            power_requirement_message = self._message_generator.get_message(
-                PowerRequirementMessage,
-                EpochNumber=self._latest_epoch,
-                TriggeringMessageIds=self._triggering_message_ids,
-                #TODO: implement station id logic
-                StationId = "1",
-                Power = 80
-            )
+        LOGGER.info("power requirement message initiated")
+        power_requirement = []
+        self._users = sorted(self._users, key=itemgetter('targetTime'), reverse=False)
+        LOGGER.info(self._users)
 
-            await self._rabbitmq_client.send_message(
-                topic_name=self._power_requirement_topic,
-                message_bytes= power_requirement_message.bytes()
-            )
+        for u in self._users:
+            station_power = 0.0
+            for s in self._stations:
+                if(u['stationId'] == s['stationId']):
+                    station_power = s['maxPower']
+            powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower']}
+            power_requirement.append(powerInfo)
+        LOGGER.info(power_requirement)
 
-            power_requirement_message = self._message_generator.get_message(
-                PowerRequirementMessage,
-                EpochNumber=self._latest_epoch,
-                TriggeringMessageIds=self._triggering_message_ids,
-                #TODO: implement station id logic
-                StationId = "2",
-                Power = 70
-            )
+        for p in power_requirement:
+            LOGGER.info("POWER REQ")
+            if(self._used_total_power < self._total_max_power):
+                LOGGER.info("IN CONDITION")
+                powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power) 
+                LOGGER.info(powerRequirementForStation)
 
-            await self._rabbitmq_client.send_message(
-                topic_name=self._power_requirement_topic,
-                message_bytes= power_requirement_message.bytes()
-            )            
+                try:
+                    power_requirement_message = self._message_generator.get_message(
+                        PowerRequirementMessage,
+                        EpochNumber=self._latest_epoch,
+                        TriggeringMessageIds=self._triggering_message_ids,
+                        StationId = p['stationId'],
+                        Power = powerRequirementForStation
+                    )
 
-        except (ValueError, TypeError, MessageError) as message_error:
-            # When there is an exception while creating the message, it is in most cases a serious error.
-            log_exception(message_error)
-            await self.send_error_message("Internal error when creating result message.")
+                    await self._rabbitmq_client.send_message(
+                        topic_name=self._power_requirement_topic,
+                        message_bytes= power_requirement_message.bytes()
+                    )            
+
+                except (ValueError, TypeError, MessageError) as message_error:
+                    # When there is an exception while creating the message, it is in most cases a serious error.
+                    log_exception(message_error)
+                    await self.send_error_message("Internal error when creating result message.")
 
 
 
