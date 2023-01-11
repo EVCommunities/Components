@@ -190,6 +190,7 @@ class ICComponent(AbstractSimulationComponent):
             await self.start_epoch()
         elif isinstance(message_object, UserStateMessage):
             message_object = cast(UserStateMessage, message_object)
+            LOGGER.info(message_object)
             LOGGER.info("USER STATE MESSAGE")
             LOGGER.info(self._user_state_received)
             for u in self._users:
@@ -227,9 +228,12 @@ class ICComponent(AbstractSimulationComponent):
             LOGGER.info("POWER REQ")
             if(self._used_total_power < self._total_max_power):
                 LOGGER.info("IN CONDITION")
+                LOGGER.info("EPOCH MESSAGE")
+                LOGGER.info(self._latest_epoch_message)
                 powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power) 
                 LOGGER.info(powerRequirementForStation)
-
+                
+                
                 try:
                     power_requirement_message = self._message_generator.get_message(
                         PowerRequirementMessage,

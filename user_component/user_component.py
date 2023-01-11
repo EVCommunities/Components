@@ -197,6 +197,19 @@ class UserComponent(AbstractSimulationComponent):
             LOGGER.info(self._station_id)
             if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
+                original_energy = (self._car_battery_capacity * self._state_of_charge) / 100
+                LOGGER.info("ORIGINAL ENERGY")
+                LOGGER.info(original_energy)
+                new_energy= (message_object.power_output * 3600) / 3600
+                LOGGER.info("New ENERGY")
+                LOGGER.info(new_energy)
+                new_total_energy = original_energy + new_energy
+                LOGGER.info("New TOTAL ENERGY")
+                LOGGER.info(new_total_energy)
+                new_soc = (new_total_energy / self._car_battery_capacity) * 100
+                LOGGER.info("New SOC")
+                LOGGER.info(new_soc)
+                self._state_of_charge = new_soc             
                 LOGGER.info("PowerOUTPUT message processed")
                 self._power_output_received = True
                 await self.start_epoch()
