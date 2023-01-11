@@ -202,6 +202,10 @@ class ICComponent(AbstractSimulationComponent):
             await self.start_epoch()
         elif isinstance(message_object, CarStateMessage):
             message_object = cast(CarStateMessage, message_object)
+            LOGGER.info(message_object)
+            for u in self._users:
+                if u['userId'] == message_object.user_id:
+                    u['stateOfCharge'] = message_object.state_of_charge
             LOGGER.info(self._car_state_received)
             self._epoch_car_state_count = self._epoch_car_state_count + 1
             await self.start_epoch()
@@ -220,17 +224,19 @@ class ICComponent(AbstractSimulationComponent):
             for s in self._stations:
                 if(u['stationId'] == s['stationId']):
                     station_power = s['maxPower']
-            powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower']}
+            powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge']}
             power_requirement.append(powerInfo)
         LOGGER.info(power_requirement)
 
         for p in power_requirement:
             LOGGER.info("POWER REQ")
             if(self._used_total_power < self._total_max_power):
+                powerRequirementForStation = float(0.0)
                 LOGGER.info("IN CONDITION")
                 LOGGER.info("EPOCH MESSAGE")
                 LOGGER.info(self._latest_epoch_message)
-                powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power) 
+                if(p['targetStateOfCharge'] > p['stateOfCharge']):
+                    powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power)                     
                 LOGGER.info(powerRequirementForStation)
                 
                 
