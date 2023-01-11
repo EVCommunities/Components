@@ -42,6 +42,7 @@ class StationComponent(AbstractSimulationComponent):
         self._station_state = False
         self._power_requirement_recevied = False
         self._power_required = None
+        self._power_output = 0.0
 
     
         environment = load_environmental_variables(
@@ -109,7 +110,7 @@ class StationComponent(AbstractSimulationComponent):
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
                 StationId=self._station_id,
-                PowerOutput=random.randrange(20, 50, 3)
+                PowerOutput=self._power_output
             )
 
             await self._rabbitmq_client.send_message(
@@ -133,6 +134,7 @@ class StationComponent(AbstractSimulationComponent):
             LOGGER.info(message_object)
             if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerRequirementMessage from {message_object.source_process_id}")
+                self._power_output = float(message_object.power)
                 self._power_requirement_recevied = True
                 await self.start_epoch()
             else:
