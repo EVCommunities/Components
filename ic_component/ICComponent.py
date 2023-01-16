@@ -10,6 +10,7 @@ from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
 from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
+from tools.datetime_tools import to_utc_datetime_object
 
 from messages.car_metadata_message import CarMetaDataMessage
 from messages.StationState_message import StationStateMessage
@@ -234,9 +235,11 @@ class ICComponent(AbstractSimulationComponent):
                 powerRequirementForStation = float(0.0)
                 LOGGER.info("IN CONDITION")
                 LOGGER.info("EPOCH MESSAGE")
-                LOGGER.info(self._latest_epoch_message)
+                LOGGER.info("START TIME")
+                LOGGER.info((to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
                 if(p['targetStateOfCharge'] > p['stateOfCharge']):
-                    powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power)                     
+                    powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
+                    self._used_total_power = self._used_total_power + powerRequirementForStation                     
                 LOGGER.info(powerRequirementForStation)
                 
                 
