@@ -83,7 +83,7 @@ class PowerRequirementMessage(AbstractResultMessage):
         return (
             super().__eq__(other) and
             isinstance(other, PowerRequirementMessage) and
-            self.power_output == other.power_output and
+            self.power == other.power and
             self.station_id == other.station_id
         )
 
