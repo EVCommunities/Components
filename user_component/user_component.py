@@ -9,6 +9,7 @@ from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
 from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
+from tools.datetime_tools import to_utc_datetime_object
 
 # import all the required messages from installed libraries
 from messages.car_metadata_message import CarMetaDataMessage
@@ -192,11 +193,26 @@ class UserComponent(AbstractSimulationComponent):
         if isinstance(message_object, PowerOutputMessage):
             LOGGER.info("message handler.")
             message_object = cast(PowerOutputMessage, message_object)
+    
             LOGGER.info(message_object)
             LOGGER.info(message_object.station_id)
             LOGGER.info(self._station_id)
             if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
+                LOGGER.info((to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
+                original_energy = (self._car_battery_capacity * self._state_of_charge) / 100
+                LOGGER.info("ORIGINAL ENERGY")
+                LOGGER.info(original_energy)
+                new_energy= (message_object.power_output * (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds) / 3600
+                LOGGER.info("New ENERGY")
+                LOGGER.info(new_energy)
+                new_total_energy = original_energy + new_energy
+                LOGGER.info("New TOTAL ENERGY")
+                LOGGER.info(new_total_energy)
+                new_soc = (new_total_energy / self._car_battery_capacity) * 100
+                LOGGER.info("New SOC")
+                LOGGER.info(new_soc)
+                self._state_of_charge = new_soc             
                 LOGGER.info("PowerOUTPUT message processed")
                 self._power_output_received = True
                 await self.start_epoch()
