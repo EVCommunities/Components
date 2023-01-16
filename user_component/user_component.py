@@ -210,6 +210,8 @@ class UserComponent(AbstractSimulationComponent):
                 LOGGER.info("New TOTAL ENERGY")
                 LOGGER.info(new_total_energy)
                 new_soc = (new_total_energy / self._car_battery_capacity) * 100
+                if(new_soc > 100.0):
+                    new_soc = float(100)
                 LOGGER.info("New SOC")
                 LOGGER.info(new_soc)
                 self._state_of_charge = new_soc             
