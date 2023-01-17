@@ -198,6 +198,7 @@ class ICComponent(AbstractSimulationComponent):
                 if u['userId'] == message_object.user_id:
                     u['targetStateOfCharge'] = message_object.target_state_of_charge
                     u['targetTime'] = message_object.target_time
+                    u['requiredEngery'] = u['carBatteryCapacity'] * (u['targetStateOfCharge'] - u['stateOfCharge'])/100
                     LOGGER.info(u)
             self._epoch_user_state_count = self._epoch_user_state_count + 1
             await self.start_epoch()
@@ -217,7 +218,9 @@ class ICComponent(AbstractSimulationComponent):
     async def _send_power_requirement_message(self):
         LOGGER.info("power requirement message initiated")
         power_requirement = []
-        self._users = sorted(self._users, key=itemgetter('targetTime'), reverse=False)
+        #self._users = sorted(self._users, key=itemgetter('targetTime'), reverse=False)
+        
+        self._users = sorted(self._users, key=lambda k: (k['targetTime'], -k['requiredEngery']))
         LOGGER.info(self._users)
 
         for u in self._users:
@@ -225,7 +228,7 @@ class ICComponent(AbstractSimulationComponent):
             for s in self._stations:
                 if(u['stationId'] == s['stationId']):
                     station_power = s['maxPower']
-            powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge']}
+            powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge'], "requiredEngery": u['requiredEngery']}
             power_requirement.append(powerInfo)
         LOGGER.info(power_requirement)
 
@@ -238,7 +241,8 @@ class ICComponent(AbstractSimulationComponent):
                 LOGGER.info("START TIME")
                 LOGGER.info((to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
                 if(p['targetStateOfCharge'] > p['stateOfCharge']):
-                    powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
+                    powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, (p['requiredEngery'] / (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds) * 3600)
+                    #powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, p['requiredEngery'] / (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
                     self._used_total_power = self._used_total_power + powerRequirementForStation                     
                 LOGGER.info(powerRequirementForStation)
                 
