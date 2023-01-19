@@ -234,8 +234,9 @@ class ICComponent(AbstractSimulationComponent):
 
         for p in power_requirement:
             LOGGER.info("POWER REQ")
+            powerRequirementForStation = float(0.0)
             if(self._used_total_power < self._total_max_power):
-                powerRequirementForStation = float(0.0)
+                
                 LOGGER.info("IN CONDITION")
                 LOGGER.info("EPOCH MESSAGE")
                 LOGGER.info("START TIME")
@@ -244,27 +245,26 @@ class ICComponent(AbstractSimulationComponent):
                     powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, (p['requiredEngery'] / (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds) * 3600)
                     #powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, p['requiredEngery'] / (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
                     self._used_total_power = self._used_total_power + powerRequirementForStation                     
-                LOGGER.info(powerRequirementForStation)
+                LOGGER.info(powerRequirementForStation)  
                 
-                
-                try:
-                    power_requirement_message = self._message_generator.get_message(
+            try:
+                power_requirement_message = self._message_generator.get_message(
                         PowerRequirementMessage,
                         EpochNumber=self._latest_epoch,
                         TriggeringMessageIds=self._triggering_message_ids,
                         StationId = p['stationId'],
                         Power = powerRequirementForStation
-                    )
+                )
 
-                    await self._rabbitmq_client.send_message(
-                        topic_name=self._power_requirement_topic,
-                        message_bytes= power_requirement_message.bytes()
-                    )            
+                await self._rabbitmq_client.send_message(
+                    topic_name=self._power_requirement_topic,
+                    message_bytes= power_requirement_message.bytes()
+                )            
 
-                except (ValueError, TypeError, MessageError) as message_error:
-                    # When there is an exception while creating the message, it is in most cases a serious error.
-                    log_exception(message_error)
-                    await self.send_error_message("Internal error when creating result message.")
+            except (ValueError, TypeError, MessageError) as message_error:
+                # When there is an exception while creating the message, it is in most cases a serious error.
+                log_exception(message_error)
+                await self.send_error_message("Internal error when creating result message.")
 
 
 
