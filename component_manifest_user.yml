@@ -36,6 +36,9 @@ Attributes:
     TargetTime:
         Environment: TARGET_TIME
         Optional: false
+    ArrivalTime:
+        Environment: ARRIVAL_TIME
+        Optional: false
     InputComponents:
         Environment: INPUT_COMPONENTS
         Optional: true

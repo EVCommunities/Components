@@ -30,6 +30,7 @@ CAR_MODEL = "CAR_MODEL"
 CAR_MAX_POWER = "CAR_MAX_POWER"
 TARGET_STATE_OF_CHARGE = "TARGET_STATE_OF_CHARGE"
 TARGET_TIME = "TARGET_TIME"
+ARRIVAL_TIME = "ARRIVAL_TIME"
 MAX_POWER = "MAX_POWER"
 USERS = "USERS"
 STATIONS = "STATIONS"
@@ -198,6 +199,7 @@ class ICComponent(AbstractSimulationComponent):
                 if u['userId'] == message_object.user_id:
                     u['targetStateOfCharge'] = message_object.target_state_of_charge
                     u['targetTime'] = message_object.target_time
+                    u['arrivalTime'] = message_object.arrival_time
                     u['requiredEngery'] = u['carBatteryCapacity'] * (u['targetStateOfCharge'] - u['stateOfCharge'])/100
                     LOGGER.info(u)
             self._epoch_user_state_count = self._epoch_user_state_count + 1

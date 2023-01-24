@@ -32,6 +32,7 @@ CAR_MODEL = "CAR_MODEL"
 CAR_MAX_POWER = "CAR_MAX_POWER"
 TARGET_STATE_OF_CHARGE = "TARGET_STATE_OF_CHARGE"
 TARGET_TIME = "TARGET_TIME"
+ARRIVAL_TIME = "ARRIVAL_TIME"
 
 
 USER_STATE_TOPIC = "USER_STATE_TOPIC"
@@ -55,7 +56,8 @@ class UserComponent(AbstractSimulationComponent):
         car_model: str,
         car_max_power: float,
         target_state_of_charge: float,
-        target_time: str):
+        target_time: str,
+        arrival_time: str):
         
         # Initialize the AbstractSimulationComponent using the values from the environmental variables.
         # This will initialize various variables including the message client for message bus access.    
@@ -71,6 +73,7 @@ class UserComponent(AbstractSimulationComponent):
         self._car_max_power = car_max_power
         self._target_state_of_charge = target_state_of_charge
         self._target_time = target_time
+        self._arrival_time = arrival_time
         self._car_metadata_sent = False
         self._user_state_sent = False
         self._power_output_received = False
@@ -233,7 +236,8 @@ class UserComponent(AbstractSimulationComponent):
                 TriggeringMessageIds=self._triggering_message_ids,
                 UserId=self._user_id,
                 TargetStateOfCharge=self._target_state_of_charge,
-                TargetTime=self._target_time
+                TargetTime=self._target_time,
+                ArrivalTime=self._arrival_time
             )
 
             await self._rabbitmq_client.send_message(
@@ -309,7 +313,8 @@ def create_component() -> UserComponent:
         (CAR_MODEL, str, ""),
         (CAR_MAX_POWER, float, 0.0),
         (TARGET_STATE_OF_CHARGE, float, 0.0),
-        (TARGET_TIME, str, "")
+        (TARGET_TIME, str, ""),
+        (ARRIVAL_TIME, str, "")
     )
 
 
@@ -324,6 +329,7 @@ def create_component() -> UserComponent:
     car_max_power = cast(str, environment_variables[CAR_MAX_POWER])
     target_state_of_charge = cast(str, environment_variables[TARGET_STATE_OF_CHARGE])
     target_time = cast(str, environment_variables[TARGET_TIME])
+    arrival_time = cast(str, environment_variables[ARRIVAL_TIME])
 
 
     # Create and return a new SimpleComponent object using the values from the environment variables
@@ -336,7 +342,8 @@ def create_component() -> UserComponent:
         car_model = car_model,
         car_max_power = car_max_power,
         target_state_of_charge = target_state_of_charge,
-        target_time = target_time
+        target_time = target_time,
+        arrival_time = arrival_time
     )
 
 async def start_component():
