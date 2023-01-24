@@ -2,7 +2,7 @@ name: Docker image update for Intelligent Controller Component
 
 on:
     push:
-        branches: [ master, main ]
+        branches: [ master, main, image-update ]
         tags: [ 'v*.*.*' ]
 
     # Allows to run this workflow manually from the Actions tab
