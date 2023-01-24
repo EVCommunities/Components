@@ -174,7 +174,10 @@ class UserComponent(AbstractSimulationComponent):
         if(not self._user_state_sent):
             await self._send_user_state_message()
             self._user_state_sent = True
-
+            if(to_utc_datetime_object(self._latest_epoch_message.start_time) < to_utc_datetime_object(self._arrival_time) or to_utc_datetime_object(self._latest_epoch_message.start_time) > to_utc_datetime_object(self._target_time)):
+                await self._send_car_state_message()
+                self._car_state_sent = True
+                return True
         if (self._power_output_received):
             await self._send_car_state_message()
             self._car_state_sent = True

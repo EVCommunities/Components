@@ -225,19 +225,30 @@ class ICComponent(AbstractSimulationComponent):
         self._users = sorted(self._users, key=lambda k: (k['targetTime'], -k['requiredEngery']))
         LOGGER.info(self._users)
 
-        for u in self._users:
-            station_power = 0.0
-            for s in self._stations:
+        for s in self._stations:
+            station_power = s['maxPower']
+            powerInfo = { "userId": "N/A", "stationId" : s['stationId'] }
+            for u in self._users:
                 if(u['stationId'] == s['stationId']):
-                    station_power = s['maxPower']
-            powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge'], "requiredEngery": u['requiredEngery']}
+                    LOGGER.info(to_utc_datetime_object(self._latest_epoch_message.start_time))
+                    LOGGER.info(to_utc_datetime_object(u['arrivalTime']))
+                    if(to_utc_datetime_object(self._latest_epoch_message.start_time) >= to_utc_datetime_object(u['arrivalTime']) and to_utc_datetime_object(self._latest_epoch_message.end_time) <= to_utc_datetime_object(u['targetTime'])):
+                        powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge'], "requiredEngery": u['requiredEngery']}
             power_requirement.append(powerInfo)
+
+        # for u in self._users:
+        #     station_power = 0.0
+        #     for s in self._stations:
+        #         if(u['stationId'] == s['stationId']):
+        #             station_power = s['maxPower']
+        #     powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge'], "requiredEngery": u['requiredEngery']}
+        #     power_requirement.append(powerInfo)
         LOGGER.info(power_requirement)
 
         for p in power_requirement:
             LOGGER.info("POWER REQ")
             powerRequirementForStation = float(0.0)
-            if(self._used_total_power < self._total_max_power):
+            if(self._used_total_power < self._total_max_power and p['userId']!= "N/A"):
                 
                 LOGGER.info("IN CONDITION")
                 LOGGER.info("EPOCH MESSAGE")
