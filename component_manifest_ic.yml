@@ -7,7 +7,7 @@
 Name: ICComponent
 Type: platform
 Description: "IC Component"
-DockerImage: iccomponentlocal
+DockerImage: ghcr.io/evcommunities/ic-component:latest
 Attributes:
     Users:
         Environment: USERS

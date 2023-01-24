@@ -7,7 +7,7 @@
 Name: UserComponent
 Type: platform
 Description: "User component for the Decoupled Simulation Platform"
-DockerImage: usercomponentlocal
+DockerImage: ghcr.io/evcommunities/user-component:latest
 Attributes:
     UserId:
         Environment: USER_ID
@@ -36,11 +36,3 @@ Attributes:
     TargetTime:
         Environment: TARGET_TIME
         Optional: false
-    InputComponents:
-        Environment: INPUT_COMPONENTS
-        Optional: true
-        Default: ""
-    OutputDelay:
-        Environment: OUTPUT_DELAY
-        Optional: true
-        Default: 0.0
