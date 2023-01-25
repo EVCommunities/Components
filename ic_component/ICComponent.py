@@ -71,6 +71,7 @@ class ICComponent(AbstractSimulationComponent):
         self._station_state_received = False
         self._user_state_received = False
         self._car_state_received = False
+        self._power_requirement_message_sent = False
 
         self._epoch_car_metadata_count = 0
         self._epoch_station_state_count = 0
@@ -127,6 +128,7 @@ class ICComponent(AbstractSimulationComponent):
         self._station_state_received = False
         self._user_state_received = False
         self._car_state_received = False
+        self._power_requirement_message_sent = False
         self._stations = []
 
     async def process_epoch(self) -> bool:
@@ -159,7 +161,9 @@ class ICComponent(AbstractSimulationComponent):
         if(self._epoch_user_state_count == self._total_user_count and self._station_state_received == True):
             self._user_state_received = True
             LOGGER.info("All User State Received")
-            await self._send_power_requirement_message()
+            if(self._power_requirement_message_sent == False):
+                await self._send_power_requirement_message()
+                self._power_requirement_message_sent = True
 
         if(self._epoch_car_state_count == self._total_user_count and self._user_state_received == True):
             self._car_state_received = True
