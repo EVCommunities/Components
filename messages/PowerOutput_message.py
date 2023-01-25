@@ -21,10 +21,14 @@ class PowerOutputMessage(AbstractResultMessage):
     STATION_ID_ATTRIBUTE = "StationId"
     STATION_ID_PROPERTY = "station_id"
 
+    USER_ID_ATTRIBUTE = "UserId"
+    USER_ID_PROPERTY = "user_id"
+
     # all attributes specific that are added to the AbstractResult should be introduced here
     MESSAGE_ATTRIBUTES = {
         POWER_OUTPUT_ATTRIBUTE: POWER_OUTPUT_PROPERTY,
-        STATION_ID_ATTRIBUTE: STATION_ID_PROPERTY
+        STATION_ID_ATTRIBUTE: STATION_ID_PROPERTY,
+        USER_ID_ATTRIBUTE: USER_ID_PROPERTY
     }
     # list all attributes that are optional here (use the JSON attribute names)
     OPTIONAL_ATTRIBUTES = []
@@ -71,6 +75,16 @@ class PowerOutputMessage(AbstractResultMessage):
     def station_id(self) -> str:
         return self.__station_id
 
+    @property
+    def user_id(self) -> int:
+        return self.__user_id
+
+    @user_id.setter
+    def user_id(self, user_id: int):
+        if self._check_user_id(user_id):
+            self.__user_id = user_id
+        else:
+            raise MessageValueError(f"Invalid value for UserId: {user_id}")
 
     @power_output.setter
     def power_output(self, power_output: int):
@@ -85,8 +99,13 @@ class PowerOutputMessage(AbstractResultMessage):
             super().__eq__(other) and
             isinstance(other, PowerOutputMessage) and
             self.station_id == other.station_id and
-            self.power_output == other.power_output
+            self.power_output == other.power_output  and
+            self.user_id == other.user_id
         )
+
+    @classmethod
+    def _check_user_id(cls, user_id: int) -> bool:
+        return isinstance(user_id, int)
 
     @classmethod
     def _check_station_id(cls, power_output: str) -> bool:

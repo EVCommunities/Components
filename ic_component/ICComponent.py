@@ -239,7 +239,7 @@ class ICComponent(AbstractSimulationComponent):
             LOGGER.info("STATION LOGGER")
             LOGGER.info(s)
             #station_power = s['maxPower']
-            powerInfoDefault = { "userId": "N/A", "stationId" : s['stationId'] }
+            powerInfoDefault = { "userId": 0, "stationId" : s['stationId'] }
             isConnected = "False"
             for u in connected_users:
                 if(u['stationId'] == s['stationId']):
@@ -275,7 +275,7 @@ class ICComponent(AbstractSimulationComponent):
             LOGGER.info("POWER REQ")
             powerRequirementForStation = float(0.0)
             LOGGER.info(p)
-            if(p['userId'] != "N/A"):
+            if(p['userId'] != 0):
                 if(self._used_total_power < self._total_max_power):
                     LOGGER.info("IN CONDITION")
                     LOGGER.info("EPOCH MESSAGE")
@@ -293,6 +293,7 @@ class ICComponent(AbstractSimulationComponent):
                         EpochNumber=self._latest_epoch,
                         TriggeringMessageIds=self._triggering_message_ids,
                         StationId = p['stationId'],
+                        UserId = p['userId'],
                         Power = powerRequirementForStation
                 )
 

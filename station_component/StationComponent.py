@@ -20,6 +20,7 @@ from messages.PowerRequirement_message import PowerRequirementMessage
 LOGGER = FullLogger(__name__)
 
 STATION_ID = "STATION_ID"
+USER_ID = "USER_ID"
 MAX_POWER = "MAX_POWER"
 INPUT_COMPONENTS = "INPUT_COMPONENTS"
 
@@ -43,6 +44,7 @@ class StationComponent(AbstractSimulationComponent):
         self._power_requirement_recevied = False
         self._power_required = None
         self._power_output = 0.0
+        self._user_id = 0
 
     
         environment = load_environmental_variables(
@@ -62,6 +64,7 @@ class StationComponent(AbstractSimulationComponent):
         self._station_state = False
         self._power_requirement_recevied = False
         self._power_required = None
+        self._user_id = 0
 
     async def process_epoch(self) -> bool:
 
@@ -110,6 +113,7 @@ class StationComponent(AbstractSimulationComponent):
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
                 StationId=self._station_id,
+                UserId=self._user_id,
                 PowerOutput=self._power_output
             )
 
@@ -135,6 +139,7 @@ class StationComponent(AbstractSimulationComponent):
             if(message_object.station_id == self._station_id):
                 LOGGER.debug(f"Received PowerRequirementMessage from {message_object.source_process_id}")
                 self._power_output = float(message_object.power)
+                self._user_id = message_object.user_id
                 self._power_requirement_recevied = True
                 await self.start_epoch()
             else:

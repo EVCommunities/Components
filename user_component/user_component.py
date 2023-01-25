@@ -174,8 +174,14 @@ class UserComponent(AbstractSimulationComponent):
         if(not self._user_state_sent):
             await self._send_user_state_message()
             self._user_state_sent = True
-            if(to_utc_datetime_object(self._latest_epoch_message.start_time) < to_utc_datetime_object(self._arrival_time) or to_utc_datetime_object(self._latest_epoch_message.start_time) > to_utc_datetime_object(self._target_time)):
+            LOGGER.info(to_utc_datetime_object(self._latest_epoch_message.start_time))
+            LOGGER.info(to_utc_datetime_object(self._arrival_time))
+            LOGGER.info(to_utc_datetime_object(self._target_time))
+            LOGGER.info(to_utc_datetime_object(self._latest_epoch_message.end_time))
+            if(to_utc_datetime_object(self._latest_epoch_message.start_time) < to_utc_datetime_object(self._arrival_time) or to_utc_datetime_object(self._latest_epoch_message.start_time) >= to_utc_datetime_object(self._target_time)):
+                LOGGER.info("IN CONDITION")
                 await self._send_car_state_message()
+                self._power_output_received = True
                 self._car_state_sent = True
                 return True
         if (self._power_output_received):
@@ -203,7 +209,7 @@ class UserComponent(AbstractSimulationComponent):
             LOGGER.info(message_object)
             LOGGER.info(message_object.station_id)
             LOGGER.info(self._station_id)
-            if(message_object.station_id == self._station_id):
+            if(message_object.station_id == self._station_id and message_object.user_id == self._user_id):
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
                 LOGGER.info((to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
                 original_energy = (self._car_battery_capacity * self._state_of_charge) / 100
