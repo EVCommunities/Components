@@ -1,6 +1,6 @@
 # Copyright 2022 Tampere University
 # This source code is licensed under the MIT license. See LICENSE in the repository root directory.
-# Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>
+# Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>, Ali Mehraj <ali.mehraj@tuni.fi>
 
 from __future__ import annotations
 from typing import Any, Dict, Optional
@@ -21,10 +21,14 @@ class PowerRequirementMessage(AbstractResultMessage):
     STATION_ID_ATTRIBUTE = "StationId"
     STATION_ID_PROPERTY = "station_id"
 
+    USER_ID_ATTRIBUTE = "UserId"
+    USER_ID_PROPERTY = "user_id"
+
     # all attributes specific that are added to the AbstractResult should be introduced here
     MESSAGE_ATTRIBUTES = {
         POWER_ATTRIBUTE: POWER_PROPERTY,
-        STATION_ID_ATTRIBUTE: STATION_ID_PROPERTY
+        STATION_ID_ATTRIBUTE: STATION_ID_PROPERTY,
+        USER_ID_ATTRIBUTE: USER_ID_PROPERTY
     }
     # list all attributes that are optional here (use the JSON attribute names)
     OPTIONAL_ATTRIBUTES = []
@@ -64,33 +68,49 @@ class PowerRequirementMessage(AbstractResultMessage):
 
 
     @property
-    def power(self) -> int:
+    def power(self) -> float:
         return self.__power
 
     @property
     def station_id(self) -> str:
         return self.__station_id
 
+    @property
+    def user_id(self) -> int:
+        return self.__user_id
+
     @power.setter
-    def power(self, power: int):
+    def power(self, power: float):
         self.__power = power
 
     @station_id.setter
     def station_id(self, station_id: str):
         self.__station_id = station_id
 
+    @user_id.setter
+    def user_id(self, user_id: int):
+        if self._check_user_id(user_id):
+            self.__user_id = user_id
+        else:
+            raise MessageValueError(f"Invalid value for UserId: {user_id}")
+
     def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
             isinstance(other, PowerRequirementMessage) and
             self.power == other.power and
-            self.station_id == other.station_id
+            self.station_id == other.station_id and
+            self.user_id == other.user_id
         )
 
 
     @classmethod
-    def _check_power(cls, power: int) -> bool:
-        return isinstance(power, int)
+    def _check_user_id(cls, user_id: int) -> bool:
+        return isinstance(user_id, int)
+
+    @classmethod
+    def _check_power(cls, power: float) -> bool:
+        return isinstance(power, float)
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Optional[PowerRequirementMessage]:
