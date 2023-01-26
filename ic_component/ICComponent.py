@@ -227,6 +227,7 @@ class ICComponent(AbstractSimulationComponent):
         LOGGER.info("power requirement message initiated")
         power_requirement = []
         #connected_stations = []
+        empty_power_requirement = []
         connected_users = []
         #self._users = sorted(self._users, key=itemgetter('targetTime'), reverse=False)
         for u in self._users:
@@ -248,11 +249,15 @@ class ICComponent(AbstractSimulationComponent):
                     LOGGER.info(to_utc_datetime_object(self._latest_epoch_message.start_time))
                     LOGGER.info(to_utc_datetime_object(u['arrivalTime']))
                     #if(to_utc_datetime_object(self._latest_epoch_message.start_time) >= to_utc_datetime_object(u['arrivalTime']) and to_utc_datetime_object(self._latest_epoch_message.end_time) <= to_utc_datetime_object(u['targetTime'])):
-                    powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(s['maxPower']), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge'], "requiredEngery": u['requiredEngery']}
+                    powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(s['maxPower']), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge'], "requiredEngery": u['requiredEngery'], "targetTime": u['targetTime']}
                     power_requirement.append(powerInfo)
             if(isConnected == "False"):
-                power_requirement.append(powerInfoDefault)
+                empty_power_requirement.append(powerInfoDefault)
+        
+        power_requirement = sorted(power_requirement, key=lambda k: (k['targetTime'], -k['requiredEngery']))
+        LOGGER.info(power_requirement)
 
+        power_requirement = power_requirement + empty_power_requirement
 
         # for s in self._stations:
         #     station_connected = False
