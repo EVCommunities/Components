@@ -3,7 +3,7 @@
 # Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>
 
 from __future__ import annotations
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from tools.exceptions.messages import MessageError, MessageValueError
 from tools.messages import AbstractResultMessage
@@ -68,7 +68,7 @@ class PowerOutputMessage(AbstractResultMessage):
 
 
     @property
-    def power_output(self) -> int:
+    def power_output(self) -> float:
         return self.__power_output
 
     @property
@@ -87,8 +87,8 @@ class PowerOutputMessage(AbstractResultMessage):
             raise MessageValueError(f"Invalid value for UserId: {user_id}")
 
     @power_output.setter
-    def power_output(self, power_output: int):
-        self.__power_output = power_output
+    def power_output(self, power_output: Union[int, float]):
+        self.__power_output = float(power_output)
 
     @station_id.setter
     def station_id(self, station_id: str):
@@ -108,12 +108,12 @@ class PowerOutputMessage(AbstractResultMessage):
         return isinstance(user_id, int)
 
     @classmethod
-    def _check_station_id(cls, power_output: str) -> bool:
-        return isinstance(power_output, str)
+    def _check_station_id(cls, station_id: str) -> bool:
+        return isinstance(station_id, str)
 
     @classmethod
-    def _check_power_output(cls, power_output: int) -> bool:
-        return isinstance(power_output, int)
+    def _check_power_output(cls, power_output: Union[int, float]) -> bool:
+        return isinstance(power_output, (int, float))
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Optional[PowerOutputMessage]:
