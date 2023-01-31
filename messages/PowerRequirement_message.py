@@ -10,7 +10,7 @@ from tools.messages import AbstractResultMessage
 
 
 class PowerRequirementMessage(AbstractResultMessage):
-    """Description for the SimpleMessage class"""
+    """Description for the PowerRequirementMessage class"""
 
     CLASS_MESSAGE_TYPE = "PowerRequirement"
     MESSAGE_TYPE_CHECK = True

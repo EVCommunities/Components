@@ -23,7 +23,6 @@ class CarMetaDataMessage(AbstractResultMessage):
     STATION_ID_ATTRIBUTE = "StationId"
     STATION_ID_PROPERTY = "station_id"
 
-    #Added
     STATE_OF_CHARGE_ATTRIBUTE = "StateOfCharge"
     STATE_OF_CHARGE_PROPERTY = "state_of_charge"
 
@@ -33,7 +32,6 @@ class CarMetaDataMessage(AbstractResultMessage):
     CAR_MODEL_ATTRIBUTE = "CarModel"
     CAR_MODEL_PROPERTY = "car_model"
 
-    #Added
     CAR_MAX_POWER_ATTRIBUTE = "CarMaxPower"
     CAR_MAX_POWER_PROPERTY = "car_max_power"
 
@@ -93,7 +91,7 @@ class CarMetaDataMessage(AbstractResultMessage):
         return self.__station_id
     @property
     def state_of_charge(self) -> float:
-        return self.__state_of_charge      
+        return self.__state_of_charge
     @property
     def car_battery_capacity(self) -> float:
         return self.__car_battery_capacity
@@ -159,12 +157,12 @@ class CarMetaDataMessage(AbstractResultMessage):
         return (
             super().__eq__(other) and
             isinstance(other, CarMetaDataMessage) and
-            self.user_id == other.user_id and 
-            self.user_name == other.user_name  and 
-            self.station_id == other.station_id and 
-            self.state_of_charge == other.state_of_charge and 
-            self.car_battery_capacity == other.car_battery_capacity and 
-            self.car_model == other.car_model and 
+            self.user_id == other.user_id and
+            self.user_name == other.user_name and
+            self.station_id == other.station_id and
+            self.state_of_charge == other.state_of_charge and
+            self.car_battery_capacity == other.car_battery_capacity and
+            self.car_model == other.car_model and
             self.car_max_power == other.car_max_power
         )
 

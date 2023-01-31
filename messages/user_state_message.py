@@ -7,8 +7,6 @@ from typing import Any, Dict, Optional
 
 from tools.exceptions.messages import MessageError, MessageValueError
 from tools.messages import AbstractResultMessage
-# Confirm usage
-from datetime import datetime
 
 class UserStateMessage(AbstractResultMessage):
     CLASS_MESSAGE_TYPE = "UserState"
@@ -17,16 +15,13 @@ class UserStateMessage(AbstractResultMessage):
     USER_ID_ATTRIBUTE = "UserId"
     USER_ID_PROPERTY = "user_id"
 
-    #Modified from TARGET_BATTERY
     TARGET_STATE_OF_CHARGE_ATTRIBUTE = "TargetStateOfCharge"
     TARGET_STATE_OF_CHARGE_PROPERTY = "target_state_of_charge"
 
 
-    #Modified from LEAVING_TIME
     ARRIVAL_TIME_ATTRIBUTE = "ArrivalTime"
     ARRIVAL_TIME_PROPERTY = "arrival_time"
 
-    #Modified from LEAVING_TIME
     TARGET_TIME_ATTRIBUTE = "TargetTime"
     TARGET_TIME_PROPERTY = "target_time"
 
@@ -72,14 +67,14 @@ class UserStateMessage(AbstractResultMessage):
     @property
     def user_id(self) -> int:
         return self.__user_id
-    
+
     @property
     def target_state_of_charge(self) -> float:
         return self.__target_state_of_charge
 
     @property
     def target_time(self) -> str:
-        return self.__target_time  
+        return self.__target_time
 
     @property
     def arrival_time(self) -> str:
@@ -117,8 +112,8 @@ class UserStateMessage(AbstractResultMessage):
         return (
             super().__eq__(other) and
             isinstance(other, UserStateMessage) and
-            self.user_id == other.user_id and 
-            self.target_state_of_charge == other.target_state_of_charge and 
+            self.user_id == other.user_id and
+            self.target_state_of_charge == other.target_state_of_charge and
             self.target_time == other.target_time and
             self.arrival_time == other.arrival_time
         )
@@ -133,11 +128,11 @@ class UserStateMessage(AbstractResultMessage):
 
     @classmethod
     def _check_target_time(cls, target_time: str) -> bool:
-        return isinstance(target_time, str)
+        return cls._check_datetime(target_time)
 
     @classmethod
     def _check_arrival_time(cls, arrival_time: str) -> bool:
-        return isinstance(arrival_time, str)
+        return cls._check_datetime(arrival_time)
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Optional[UserStateMessage]:

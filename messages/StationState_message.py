@@ -5,12 +5,12 @@
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
-from tools.exceptions.messages import MessageError, MessageValueError
+from tools.exceptions.messages import MessageError
 from tools.messages import AbstractResultMessage
 
 
 class StationStateMessage(AbstractResultMessage):
-    """Description for the SimpleMessage class"""
+    """Description for the StationStateMessage class"""
 
     CLASS_MESSAGE_TYPE = "StationState"
     MESSAGE_TYPE_CHECK = True

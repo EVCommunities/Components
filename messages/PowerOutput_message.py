@@ -10,7 +10,7 @@ from tools.messages import AbstractResultMessage
 
 
 class PowerOutputMessage(AbstractResultMessage):
-    """Description for the SimpleMessage class"""
+    """Description for the PowerOutputMessage class"""
 
     CLASS_MESSAGE_TYPE = "PowerOutput"
     MESSAGE_TYPE_CHECK = True
@@ -99,7 +99,7 @@ class PowerOutputMessage(AbstractResultMessage):
             super().__eq__(other) and
             isinstance(other, PowerOutputMessage) and
             self.station_id == other.station_id and
-            self.power_output == other.power_output  and
+            self.power_output == other.power_output and
             self.user_id == other.user_id
         )
 
