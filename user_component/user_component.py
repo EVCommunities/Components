@@ -3,7 +3,7 @@
 # Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
 
 import asyncio
-from typing import Any, cast, Set, Union
+from typing import Any, cast, Union
 
 from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
@@ -57,12 +57,13 @@ class UserComponent(AbstractSimulationComponent):
         car_max_power: float,
         target_state_of_charge: float,
         target_time: str,
-        arrival_time: str):
-        
+        arrival_time: str
+    ):
+
         # Initialize the AbstractSimulationComponent using the values from the environmental variables.
-        # This will initialize various variables including the message client for message bus access.    
+        # This will initialize various variables including the message client for message bus access.
         super().__init__()
-    
+
         # Set the object variables for the extra parameters.
         self._user_id = user_id
         self._user_name = user_name
@@ -74,6 +75,7 @@ class UserComponent(AbstractSimulationComponent):
         self._target_state_of_charge = target_state_of_charge
         self._target_time = target_time
         self._arrival_time = arrival_time
+
         self._car_metadata_sent = False
         self._user_state_sent = False
         self._power_output_received = False
@@ -99,23 +101,15 @@ class UserComponent(AbstractSimulationComponent):
             (CAR_METADATA_TOPIC, str, "Init.User.CarMetadata")
         )
 
-
-        # Not make multiple topics with the join statements.
-
         self._user_state_topic = cast(str, environment[USER_STATE_TOPIC])
-        # self._user_state_topic_output = ".".join([self._user_state_topic_base, self.component_name])
-
         self._car_state_topic = cast(str, environment[CAR_STATE_TOPIC])
-        # self._car_state_topic_output = ".".join([self._car_state_topic_base, self.component_name])
-
         self._car_metadata_topic = cast(str, environment[CAR_METADATA_TOPIC])
-        # self._car_metadata_topic_output = ".".join([self._car_metadata_topic_base, self.component_name])     
 
         # The easiest way to ensure that the component will listen to all necessary topics
         # is to set the self._other_topics variable with the list of the topics to listen to.
         # Note, that the "SimState" and "Epoch" topic listeners are added automatically by the parent class.
-        
-        #recieve topic
+
+        # receive topic
         self._other_topics = [
             "PowerOutputTopic"
         ]
@@ -125,7 +119,8 @@ class UserComponent(AbstractSimulationComponent):
 
         if self.start_message is not None:
             LOGGER.info("START MESSAGE")
-            LOGGER.info(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys())
+            LOGGER.info(str(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys()))
+
         # Variables that should only be READ in the child class:
         # - self.simulation_id               the simulation id
         # - self.component_name              the component name
@@ -234,7 +229,7 @@ class UserComponent(AbstractSimulationComponent):
                 LOGGER.debug(f"Ignoring PowerOutputMessage from {message_object.source_process_id}")
 
         else:
-            LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
+            LOGGER.debug(f"Received unknown message from {message_routing_key}: {message_object}")
 
     async def _send_user_state_message(self):
         LOGGER.info("user state message sent")
@@ -257,7 +252,7 @@ class UserComponent(AbstractSimulationComponent):
         except (ValueError, TypeError, MessageError) as message_error:
             # When there is an exception while creating the message, it is in most cases a serious error.
             log_exception(message_error)
-            await self.send_error_message("Internal error when creating result message.")
+            await self.send_error_message("Internal error when creating user state message.")
 
     async def _send_car_state_message(self):
         LOGGER.info("car state message sent")
@@ -279,7 +274,7 @@ class UserComponent(AbstractSimulationComponent):
         except (ValueError, TypeError, MessageError) as message_error:
             # When there is an exception while creating the message, it is in most cases a serious error.
             log_exception(message_error)
-            await self.send_error_message("Internal error when creating result message.")
+            await self.send_error_message("Internal error when creating car state message.")
 
     async def _send_car_metadata_message(self):
         LOGGER.info("car metadata message sent")
@@ -305,7 +300,7 @@ class UserComponent(AbstractSimulationComponent):
         except (ValueError, TypeError, MessageError) as message_error:
             # When there is an exception while creating the message, it is in most cases a serious error.
             log_exception(message_error)
-            await self.send_error_message("Internal error when creating result message.")
+            await self.send_error_message("Internal error when creating car metadata message.")
 
 def create_component() -> UserComponent:
     """
@@ -314,7 +309,7 @@ def create_component() -> UserComponent:
     LOGGER.info("create user component")
     # Read the parameters for the component from the environment variables.
     environment_variables = load_environmental_variables(
-        (USER_ID, int, 0),   
+        (USER_ID, int, 0),
         (USER_NAME, str, ""),
         (STATION_ID, str, ""),
         (STATE_OF_CHARGE, float, 0.0),
@@ -335,8 +330,8 @@ def create_component() -> UserComponent:
     state_of_charge = cast(float, environment_variables[STATE_OF_CHARGE])
     car_battery_capacity = cast(float, environment_variables[CAR_BATTERY_CAPACITY])
     car_model = cast(str, environment_variables[CAR_MODEL])
-    car_max_power = cast(str, environment_variables[CAR_MAX_POWER])
-    target_state_of_charge = cast(str, environment_variables[TARGET_STATE_OF_CHARGE])
+    car_max_power = cast(float, environment_variables[CAR_MAX_POWER])
+    target_state_of_charge = cast(float, environment_variables[TARGET_STATE_OF_CHARGE])
     target_time = cast(str, environment_variables[TARGET_TIME])
     arrival_time = cast(str, environment_variables[ARRIVAL_TIME])
 
