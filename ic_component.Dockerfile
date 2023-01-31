@@ -4,8 +4,8 @@
 
 # define the version of Python here
 FROM python:3.7.9
-LABEL org.opencontainers.image.source https://github.com/simcesplatform/user-component
-LABEL org.opencontainers.image.description "Docker image for the ic-component for the SimCES platform."
+LABEL org.opencontainers.image.source https://github.com/EVCommunities/Components
+LABEL org.opencontainers.image.description "Docker image for the ic component for the SimCES platform."
 
 # create the required directories inside the Docker image
 RUN mkdir -p /ic_component

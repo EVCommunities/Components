@@ -6,8 +6,8 @@
 
 Name: StationComponent
 Type: platform
-Description: "Station Component Test v1.0.1"
-DockerImage: station_component_v2
+Description: "Station Component v1.0.1"
+DockerImage: ghcr.io/evcommunities/station-component:latest
 Attributes:
     StationId:
         Environment: STATION_ID
