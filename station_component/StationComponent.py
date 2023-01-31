@@ -3,9 +3,7 @@
 # Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>, Ali Mehraj <ali.mehraj@tuni.fi>
 
 import asyncio
-import traceback
-import random
-from typing import Any, cast, Set, Optional, Union
+from typing import Any, cast, Union
 
 from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
@@ -22,7 +20,6 @@ LOGGER = FullLogger(__name__)
 STATION_ID = "STATION_ID"
 USER_ID = "USER_ID"
 MAX_POWER = "MAX_POWER"
-INPUT_COMPONENTS = "INPUT_COMPONENTS"
 
 STATION_STATE_TOPIC = "STATION_STATE_TOPIC"
 POWER_OUTPUT_TOPIC = "POWER_OUTPUT_TOPIC"
@@ -32,24 +29,23 @@ TIMEOUT = 1.0
 class StationComponent(AbstractSimulationComponent):
 
 
-    def __init__(self,station_id: str, max_power:int):
-        
+    def __init__(self, station_id: str, max_power: float):
+
         super().__init__()
 
         self._station_id = station_id
         self._max_power = max_power
 
 
-        self._station_state = False
-        self._power_requirement_recevied = False
-        self._power_required = None
-        self._power_output = 0.0
-        self._user_id = 0
+        self._station_state: bool = False
+        self._power_requirement_received: bool = False
+        self._power_output: float = 0.0
+        self._user_id: int = 0
 
-    
+
         environment = load_environmental_variables(
             (STATION_STATE_TOPIC, str, "StationStateTopic"),
-             (POWER_OUTPUT_TOPIC, str, "PowerOutputTopic")
+            (POWER_OUTPUT_TOPIC, str, "PowerOutputTopic")
         )
         self._station_state_topic = cast(str, environment[STATION_STATE_TOPIC])
         self._power_output_topic = cast(str, environment[POWER_OUTPUT_TOPIC])
@@ -62,8 +58,8 @@ class StationComponent(AbstractSimulationComponent):
 
     def clear_epoch_variables(self) -> None:
         self._station_state = False
-        self._power_requirement_recevied = False
-        self._power_required = None
+        self._power_requirement_received = False
+        self._power_output = 0.0
         self._user_id = 0
 
     async def process_epoch(self) -> bool:
@@ -72,17 +68,17 @@ class StationComponent(AbstractSimulationComponent):
             await self._send_stationstate_message()
             self._station_state = True
 
-        if (self._power_requirement_recevied):
+        if (self._power_requirement_received):
             await self._send_poweroutput_message()
             return True
-        
-        return False
-        
 
-    
+        return False
+
+
+
     async def _send_stationstate_message(self):
         """
-        Sends a intial station state  message to the IC
+        Sends a initial station state message to the IC
         """
         try:
             stationstate_message = self._message_generator.get_message(
@@ -135,28 +131,28 @@ class StationComponent(AbstractSimulationComponent):
         LOGGER.info("message handler.")
         if isinstance(message_object, PowerRequirementMessage):
             message_object = cast(PowerRequirementMessage, message_object)
-            LOGGER.info(message_object)
-            if(message_object.station_id == self._station_id):
+            LOGGER.info(str(message_object))
+            if message_object.station_id == self._station_id:
                 LOGGER.debug(f"Received PowerRequirementMessage from {message_object.source_process_id}")
                 self._power_output = float(message_object.power)
                 self._user_id = message_object.user_id
-                self._power_requirement_recevied = True
+                self._power_requirement_received = True
                 await self.start_epoch()
             else:
                 LOGGER.debug(f"Ignoring PowerRequirementMessage from {message_object.source_process_id}")
         else:
-            LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
+            LOGGER.debug(f"Received unknown message from {message_routing_key}: {message_object}")
 
 
 def create_component() -> StationComponent:
 
     LOGGER.debug("create")
     environment_variables = load_environmental_variables(
-        (STATION_ID, str, ""),  
-        (MAX_POWER, str, "")  
+        (STATION_ID, str, ""),
+        (MAX_POWER, float, 0.0)
     )
     station_id = cast(str, environment_variables[STATION_ID])
-    max_power = cast(str, environment_variables[MAX_POWER])
+    max_power = cast(float, environment_variables[MAX_POWER])
 
 
     return StationComponent(
@@ -177,8 +173,6 @@ async def start_component():
     except BaseException as error:  # pylint: disable=broad-except
         log_exception(error)
         LOGGER.info("Component will now exit.")
-
-
 
 
 if __name__ == "__main__":
