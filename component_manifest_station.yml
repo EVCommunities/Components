@@ -15,4 +15,3 @@ Attributes:
     MaxPower:
         Environment: MAX_POWER
         Optional: false
-
