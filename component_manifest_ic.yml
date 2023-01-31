@@ -9,12 +9,6 @@ Type: platform
 Description: "IC Component"
 DockerImage: ghcr.io/evcommunities/ic-component:latest
 Attributes:
-    Users:
-        Environment: USERS
-        Optional: false
-    Stations:
-        Environment: STATIONS
-        Optional: false
     TotalMaxPower:
         Environment: TOTAL_MAX_POWER
         Optional: false
