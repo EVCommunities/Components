@@ -158,36 +158,30 @@ class UserComponent(AbstractSimulationComponent):
         NOTE: this method should be overwritten in any child class.
         TODO: add proper description specific for this component.
         """
-
-
-        # Modify with Conditions
-        ## Add the send message functions
-        if(not self._car_metadata_sent and self._latest_epoch == 1):
+        if not self._car_metadata_sent and self._latest_epoch == 1:
             await self._send_car_metadata_message()
             self._car_metadata_sent = True
-            
-        if(not self._user_state_sent):
+
+        if not self._user_state_sent:
             await self._send_user_state_message()
             self._user_state_sent = True
-            LOGGER.info(to_utc_datetime_object(self._latest_epoch_message.start_time))
-            LOGGER.info(to_utc_datetime_object(self._arrival_time))
-            LOGGER.info(to_utc_datetime_object(self._target_time))
-            LOGGER.info(to_utc_datetime_object(self._latest_epoch_message.end_time))
-            if(to_utc_datetime_object(self._latest_epoch_message.start_time) < to_utc_datetime_object(self._arrival_time) or to_utc_datetime_object(self._latest_epoch_message.start_time) >= to_utc_datetime_object(self._target_time)):
-                LOGGER.info("IN CONDITION")
-                await self._send_car_state_message()
-                self._power_output_received = True
-                self._car_state_sent = True
-                return True
-        if (self._power_output_received):
+
+            if self._latest_epoch_message is not None:  # this should always be True when we are here
+                LOGGER.info(f"current epoch: {self._latest_epoch_message.start_time} - {self._latest_epoch_message.end_time}")
+                LOGGER.info(f"car at station: {self._arrival_time} - {self._target_time}")
+                if (
+                    to_utc_datetime_object(self._latest_epoch_message.end_time) <= to_utc_datetime_object(self._arrival_time) or
+                    to_utc_datetime_object(self._latest_epoch_message.start_time) >= to_utc_datetime_object(self._target_time)
+                ):
+                    LOGGER.info("Not in a station => setting power_output_received to True")
+                    self._power_output_received = True
+
+        if self._power_output_received and not self._car_state_sent:
             await self._send_car_state_message()
             self._car_state_sent = True
-            return True
-        
 
-        #Modify
         # return True to indicate that the component is finished with the current epoch
-        return False
+        return self._user_state_sent and self._car_state_sent
 
 
     async def all_messages_received_for_epoch(self) -> bool:
@@ -200,28 +194,31 @@ class UserComponent(AbstractSimulationComponent):
         if isinstance(message_object, PowerOutputMessage):
             LOGGER.info("message handler.")
             message_object = cast(PowerOutputMessage, message_object)
-    
-            LOGGER.info(message_object)
+
+            LOGGER.info(str(message_object))
             LOGGER.info(message_object.station_id)
             LOGGER.info(self._station_id)
-            if(message_object.station_id == self._station_id and message_object.user_id == self._user_id):
+            if message_object.station_id == self._station_id and message_object.user_id == self._user_id:
+                if self._latest_epoch_message is None:
+                    await self.send_error_message("Got PowerOutputMessage but there is no latest epoch message")
+                    return
+                if self._power_output_received:
+                    LOGGER.warning(f"Already received PowerOutputMessage. Ignoring message from {message_object.source_process_id}")
+                    return
+
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
-                LOGGER.info((to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
-                original_energy = (self._car_battery_capacity * self._state_of_charge) / 100
-                LOGGER.info("ORIGINAL ENERGY")
-                LOGGER.info(original_energy)
-                new_energy= (message_object.power_output * (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds) / 3600
-                LOGGER.info("New ENERGY")
-                LOGGER.info(new_energy)
+                epoch_length = (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds
+                LOGGER.info(f"epoch length: {epoch_length}")
+                original_energy = (self._car_battery_capacity * self._state_of_charge) / 100  # in kWh
+                LOGGER.info(f"ORIGINAL ENERGY: {original_energy}")
+                new_energy = (message_object.power_output * epoch_length) / 3600  # in kWh
+                LOGGER.info(f"New ENERGY: {new_energy}")
                 new_total_energy = original_energy + new_energy
-                LOGGER.info("New TOTAL ENERGY")
-                LOGGER.info(new_total_energy)
+                LOGGER.info(f"New TOTAL ENERGY: {new_total_energy}")
                 new_soc = (new_total_energy / self._car_battery_capacity) * 100
-                if(new_soc > 100.0):
-                    new_soc = float(100)
-                LOGGER.info("New SOC")
-                LOGGER.info(new_soc)
-                self._state_of_charge = new_soc             
+                new_soc = min(new_soc, 100.0)
+                LOGGER.info(f"New SOC: {new_soc}")
+                self._state_of_charge = new_soc
                 LOGGER.info("PowerOUTPUT message processed")
                 self._power_output_received = True
                 await self.start_epoch()
