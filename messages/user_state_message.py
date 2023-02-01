@@ -7,8 +7,6 @@ from typing import Any, Dict, Optional
 
 from tools.exceptions.messages import MessageError, MessageValueError
 from tools.messages import AbstractResultMessage
-# Confirm usage
-from datetime import datetime
 
 class UserStateMessage(AbstractResultMessage):
     CLASS_MESSAGE_TYPE = "UserState"
@@ -17,18 +15,21 @@ class UserStateMessage(AbstractResultMessage):
     USER_ID_ATTRIBUTE = "UserId"
     USER_ID_PROPERTY = "user_id"
 
-    #Modified from TARGET_BATTERY
     TARGET_STATE_OF_CHARGE_ATTRIBUTE = "TargetStateOfCharge"
     TARGET_STATE_OF_CHARGE_PROPERTY = "target_state_of_charge"
 
-    #Modified from LEAVING_TIME
+
+    ARRIVAL_TIME_ATTRIBUTE = "ArrivalTime"
+    ARRIVAL_TIME_PROPERTY = "arrival_time"
+
     TARGET_TIME_ATTRIBUTE = "TargetTime"
     TARGET_TIME_PROPERTY = "target_time"
 
     MESSAGE_ATTRIBUTES = {
         USER_ID_ATTRIBUTE: USER_ID_PROPERTY,
         TARGET_STATE_OF_CHARGE_ATTRIBUTE: TARGET_STATE_OF_CHARGE_PROPERTY,
-        TARGET_TIME_ATTRIBUTE: TARGET_TIME_PROPERTY
+        TARGET_TIME_ATTRIBUTE: TARGET_TIME_PROPERTY,
+        ARRIVAL_TIME_ATTRIBUTE: ARRIVAL_TIME_PROPERTY
     }
     # list all attributes that are optional here (use the JSON attribute names)
     OPTIONAL_ATTRIBUTES = []
@@ -66,14 +67,18 @@ class UserStateMessage(AbstractResultMessage):
     @property
     def user_id(self) -> int:
         return self.__user_id
-    
+
     @property
     def target_state_of_charge(self) -> float:
         return self.__target_state_of_charge
 
     @property
     def target_time(self) -> str:
-        return self.__target_time  
+        return self.__target_time
+
+    @property
+    def arrival_time(self) -> str:
+        return self.__arrival_time
 
     @user_id.setter
     def user_id(self, user_id: int):
@@ -96,13 +101,21 @@ class UserStateMessage(AbstractResultMessage):
         else:
             raise MessageValueError(f"Invalid value for TargetStateOfCharge: {target_time}")
 
+    @arrival_time.setter
+    def arrival_time(self, arrival_time: str):
+        if self._check_arrival_time(arrival_time):
+            self.__arrival_time = arrival_time
+        else:
+            raise MessageValueError(f"Invalid value for TargetStateOfCharge: {arrival_time}")
+
     def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other) and
             isinstance(other, UserStateMessage) and
-            self.user_id == other.user_id and 
-            self.target_state_of_charge == other.target_state_of_charge and 
-            self.target_time == other.target_time
+            self.user_id == other.user_id and
+            self.target_state_of_charge == other.target_state_of_charge and
+            self.target_time == other.target_time and
+            self.arrival_time == other.arrival_time
         )
 
     @classmethod
@@ -115,7 +128,11 @@ class UserStateMessage(AbstractResultMessage):
 
     @classmethod
     def _check_target_time(cls, target_time: str) -> bool:
-        return isinstance(target_time, str)
+        return cls._check_datetime(target_time)
+
+    @classmethod
+    def _check_arrival_time(cls, arrival_time: str) -> bool:
+        return cls._check_datetime(arrival_time)
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Optional[UserStateMessage]:

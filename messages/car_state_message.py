@@ -19,7 +19,6 @@ class CarStateMessage(AbstractResultMessage):
     STATION_ID_ATTRIBUTE = "StationId"
     STATION_ID_PROPERTY = "station_id"
 
-    #Added
     STATE_OF_CHARGE_ATTRIBUTE = "StateOfCharge"
     STATE_OF_CHARGE_PROPERTY = "state_of_charge"
 
@@ -70,7 +69,7 @@ class CarStateMessage(AbstractResultMessage):
         return self.__station_id
     @property
     def state_of_charge(self) -> float:
-        return self.__state_of_charge      
+        return self.__state_of_charge
 
     @user_id.setter
     def user_id(self, user_id: int):
@@ -97,8 +96,8 @@ class CarStateMessage(AbstractResultMessage):
         return (
             super().__eq__(other) and
             isinstance(other, CarStateMessage) and
-            self.user_id == other.user_id and 
-            self.station_id == other.station_id and 
+            self.user_id == other.user_id and
+            self.station_id == other.station_id and
             self.state_of_charge == other.state_of_charge
         )
 

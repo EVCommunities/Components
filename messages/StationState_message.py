@@ -3,14 +3,14 @@
 # Author(s): Chalith Haputhantrige <chalith.haputhantrige@tuni.fi>
 
 from __future__ import annotations
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
-from tools.exceptions.messages import MessageError, MessageValueError
+from tools.exceptions.messages import MessageError
 from tools.messages import AbstractResultMessage
 
 
 class StationStateMessage(AbstractResultMessage):
-    """Description for the SimpleMessage class"""
+    """Description for the StationStateMessage class"""
 
     CLASS_MESSAGE_TYPE = "StationState"
     MESSAGE_TYPE_CHECK = True
@@ -66,7 +66,7 @@ class StationStateMessage(AbstractResultMessage):
         return self.__station_id
 
     @property
-    def max_power(self) -> int:
+    def max_power(self) -> float:
         return self.__max_power
 
     @station_id.setter
@@ -74,8 +74,8 @@ class StationStateMessage(AbstractResultMessage):
         self.__station_id = station_id
 
     @max_power.setter
-    def max_power(self, max_power: int):
-        self.__max_power = max_power
+    def max_power(self, max_power: Union[int, float]):
+        self.__max_power = float(max_power)
 
     def __eq__(self, other: Any) -> bool:
         return (
@@ -90,8 +90,8 @@ class StationStateMessage(AbstractResultMessage):
         return isinstance(station_id, str)
 
     @classmethod
-    def _check_max_power(cls, max_power: int) -> bool:
-        return isinstance(max_power, int)
+    def _check_max_power(cls, max_power: Union[int, float]) -> bool:
+        return isinstance(max_power, (int, float))
 
     @classmethod
     def from_json(cls, json_message: Dict[str, Any]) -> Optional[StationStateMessage]:

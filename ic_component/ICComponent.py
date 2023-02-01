@@ -3,8 +3,7 @@
 # Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
 
 import asyncio
-from typing import Any, cast, Set, Union
-from operator import itemgetter
+from typing import Any, cast, List, Union
 
 from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
@@ -12,6 +11,9 @@ from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
 from tools.datetime_tools import to_utc_datetime_object
 
+from ic_component.power_info import PowerInfo
+from ic_component.station_data import StationData
+from ic_component.user_data import UserData
 from messages.car_metadata_message import CarMetaDataMessage
 from messages.StationState_message import StationStateMessage
 from messages.user_state_message import UserStateMessage
@@ -30,9 +32,8 @@ CAR_MODEL = "CAR_MODEL"
 CAR_MAX_POWER = "CAR_MAX_POWER"
 TARGET_STATE_OF_CHARGE = "TARGET_STATE_OF_CHARGE"
 TARGET_TIME = "TARGET_TIME"
+ARRIVAL_TIME = "ARRIVAL_TIME"
 MAX_POWER = "MAX_POWER"
-USERS = "USERS"
-STATIONS = "STATIONS"
 TOTAL_MAX_POWER = "TOTAL_MAX_POWER"
 
 USER_STATE_TOPIC = "USER_STATE_TOPIC"
@@ -48,19 +49,17 @@ class ICComponent(AbstractSimulationComponent):
     # The constructor for the component class.
     def __init__(
         self,
-        users: list,
-        stations: list,
         total_max_power: float
-        ):
+    ):
 
         # Initialize the AbstractSimulationComponent using the values from the environmental variables.
-        # This will initialize various variables including the message client for message bus access.    
-        
+        # This will initialize various variables including the message client for message bus access.
+
         super().__init__()
 
         # Set the object variables for the extra parameters.
-        self._users = users
-        self._stations = stations
+        self._users: List[UserData] = []
+        self._stations: List[StationData] = []
         self._total_max_power = total_max_power
 
         self._total_user_count = 0
@@ -70,6 +69,7 @@ class ICComponent(AbstractSimulationComponent):
         self._station_state_received = False
         self._user_state_received = False
         self._car_state_received = False
+        self._power_requirement_message_sent = False
 
         self._epoch_car_metadata_count = 0
         self._epoch_station_state_count = 0
@@ -91,14 +91,14 @@ class ICComponent(AbstractSimulationComponent):
         # Load environmental variables for those parameters that were not given to the constructor.
         # In this template the used topics are set in this way with given default values as an example.
         # fix topic names
-        
+
         environment = load_environmental_variables(
             (POWER_REQUIREMENT_TOPIC, str, "PowerRequirementTopic")
         )
 
         self._power_requirement_topic = cast(str, environment[POWER_REQUIREMENT_TOPIC])
 
-        #recieve topic
+        # receive topic
         self._other_topics = [
             "Init.User.CarMetadata",
             "User.UserState",
@@ -107,11 +107,13 @@ class ICComponent(AbstractSimulationComponent):
         ]
 
         if self.start_message is not None:
+            users = self.start_message.get('ProcessParameters', {}).get('UserComponent', {}).keys()
+            stations = self.start_message.get('ProcessParameters', {}).get('StationComponent', {}).keys()
             LOGGER.info("START MESSAGE")
-            LOGGER.info(len(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys()))
-            LOGGER.info(len(self.start_message.get("ProcessParameters", {}).get("StationComponent", {}).keys()))
-            self._total_user_count = len(self.start_message.get("ProcessParameters", {}).get("UserComponent", {}).keys())
-            self._total_station_count = len(self.start_message.get("ProcessParameters", {}).get("StationComponent", {}).keys())
+            LOGGER.info(f"Users: {users}")
+            LOGGER.info(f"Stations: {stations}")
+            self._total_user_count = len(users)
+            self._total_station_count = len(stations)
 
     def clear_epoch_variables(self) -> None:
         """Clears all the variables that are used to store information about the received input within the
@@ -126,6 +128,8 @@ class ICComponent(AbstractSimulationComponent):
         self._station_state_received = False
         self._user_state_received = False
         self._car_state_received = False
+        self._power_requirement_message_sent = False
+        self._stations = []
 
     async def process_epoch(self) -> bool:
         """
@@ -137,151 +141,219 @@ class ICComponent(AbstractSimulationComponent):
         NOTE: this method should be overwritten in any child class.
         TODO: add proper description specific for this component.
         """
-        # Modify with Conditions
-        ## Add the send message functions
-        LOGGER.info("TOTAL AVAILABLE POWER")
-        LOGGER.info(self._total_max_power)
+        LOGGER.info(f"TOTAL AVAILABLE POWER: {self._total_max_power}")
         LOGGER.info("Process epoch")
-        LOGGER.info(self._epoch_car_metadata_count)
-        LOGGER.info(self._total_user_count)
-        if(self._epoch_car_metadata_count == self._total_user_count):
+        LOGGER.info(f"metadata count: {self._epoch_car_metadata_count}")
+        LOGGER.info(f"total user count: {self._total_user_count}")
+
+        if self._epoch_car_metadata_count == self._total_user_count:
             self._car_metadata_received = True
-            LOGGER.info("All Car Metadata Received")
-            LOGGER.info(self._car_metadata_received)
+            LOGGER.info(f"All Car Metadata Received: {self._car_metadata_received}")
 
-        if(self._epoch_station_state_count == self._total_station_count and self._car_metadata_received == True):
+        if self._epoch_station_state_count == self._total_station_count:
             self._station_state_received = True
-            LOGGER.info("All Station State Received")
+            LOGGER.info(f"All Station State Received: {self._stations}")
 
-        if(self._epoch_user_state_count == self._total_user_count and self._station_state_received == True):
+        if self._epoch_user_state_count == self._total_user_count:
             self._user_state_received = True
             LOGGER.info("All User State Received")
+
+        if not self._power_requirement_message_sent and (
+            self._car_metadata_received and self._station_state_received and self._user_state_received
+        ):
             await self._send_power_requirement_message()
+            self._power_requirement_message_sent = True
 
-        if(self._epoch_car_state_count == self._total_user_count and self._user_state_received == True):
+        if self._epoch_car_state_count == self._total_user_count:
             self._car_state_received = True
-            return True
-        
 
-        #Modify
-        # return True to indicate that the component is finished with the current epoch
-        return False
+        return self._power_requirement_message_sent and self._car_state_received
 
     async def all_messages_received_for_epoch(self) -> bool:
         return True
 
     async def general_message_handler(self, message_object: Union[BaseMessage, Any], message_routing_key: str) -> None:
-
         LOGGER.info("message handler.")
+
         if isinstance(message_object, CarMetaDataMessage):
             message_object = cast(CarMetaDataMessage, message_object)
-            carMetaDatainfo = { "userId": message_object.user_id, "userName": message_object.user_name, "stationId": message_object.station_id, "stateOfCharge": message_object.state_of_charge, "carBatteryCapacity": message_object.car_battery_capacity, "carModel": message_object.car_model, "carMaxPower": message_object.car_max_power}
-            #carMetaDatainfo = (message_object.user_id, message_object.user_name, message_object.station_id, message_object.state_of_charge, message_object.car_battery_capacity, message_object.car_model, message_object.car_max_power)
+            carMetaDatainfo = UserData(
+                user_id=message_object.user_id,
+                user_name=message_object.user_name,
+                station_id=message_object.station_id,
+                state_of_charge=message_object.state_of_charge,
+                car_battery_capacity=message_object.car_battery_capacity,
+                car_model=message_object.car_model,
+                car_max_power=message_object.car_max_power
+            )
+            if carMetaDatainfo.user_id in [user.user_id for user in self._users]:
+                LOGGER.warning(f"Received second metadata for user {carMetaDatainfo.user_id}")
+                return
+
             self._users.append(carMetaDatainfo)
-            LOGGER.info(len(self._users))
+            LOGGER.info(f"Number of users with metadata: {len(self._users)}")
             self._epoch_car_metadata_count = self._epoch_car_metadata_count + 1
             await self.start_epoch()
+
         elif isinstance(message_object, StationStateMessage):
             message_object = cast(StationStateMessage, message_object)
-            stationInfo = { "stationId": message_object.station_id, "maxPower": message_object.max_power}
-            #stationInfo = (message_object.station_id, message_object.max_power)
+            stationInfo = StationData(
+                station_id=message_object.station_id,
+                max_power=message_object.max_power
+            )
+            if stationInfo.station_id in [station.station_id for station in self._stations]:
+                LOGGER.warning(f"Received second data for station {stationInfo.station_id}")
+                return
+
             self._stations.append(stationInfo)
-            LOGGER.info(len(self._stations))
+            LOGGER.info(f"Number of stations with data: {len(self._stations)}")
             self._epoch_station_state_count = self._epoch_station_state_count + 1
             await self.start_epoch()
+
         elif isinstance(message_object, UserStateMessage):
             message_object = cast(UserStateMessage, message_object)
-            LOGGER.info(message_object)
-            LOGGER.info("USER STATE MESSAGE")
-            LOGGER.info(self._user_state_received)
-            for u in self._users:
-                if u['userId'] == message_object.user_id:
-                    u['targetStateOfCharge'] = message_object.target_state_of_charge
-                    u['targetTime'] = message_object.target_time
-                    u['requiredEngery'] = u['carBatteryCapacity'] * (u['targetStateOfCharge'] - u['stateOfCharge'])/100
-                    LOGGER.info(u)
+            LOGGER.info(f"user state: {message_object}")
+            LOGGER.info(f"USER STATE MESSAGE: {self._user_state_received}")
+
+            if message_object.user_id not in [user.user_id for user in self._users]:
+                LOGGER.error(f"Received an user state message for a user without metadata: {message_object.user_id}")
+                # TODO: figure out what to do in this case:
+                return
+
+            for user in self._users:
+                if user.user_id == message_object.user_id:
+                    user.target_state_of_charge = message_object.target_state_of_charge
+                    user.target_time = message_object.target_time
+                    user.arrival_time = message_object.arrival_time
+                    user.required_energy = user.car_battery_capacity * (user.target_state_of_charge - user.state_of_charge) / 100
+                    LOGGER.info(str(user))
+                    break
+
             self._epoch_user_state_count = self._epoch_user_state_count + 1
             await self.start_epoch()
+
         elif isinstance(message_object, CarStateMessage):
             message_object = cast(CarStateMessage, message_object)
-            LOGGER.info(message_object)
-            for u in self._users:
-                if u['userId'] == message_object.user_id:
-                    u['stateOfCharge'] = message_object.state_of_charge
-            LOGGER.info(self._car_state_received)
+            LOGGER.info(f"car state: {message_object}")
+
+            if message_object.user_id not in [user.user_id for user in self._users]:
+                LOGGER.error(f"Received a car state message for a user without data: {message_object.user_id}")
+                # TODO: figure out what to do in this case:
+                return
+
+            for user in self._users:
+                if user.user_id == message_object.user_id:
+                    user.state_of_charge = message_object.state_of_charge
+                    break
+
+            LOGGER.info(f"car_state_received: {self._car_state_received}")
             self._epoch_car_state_count = self._epoch_car_state_count + 1
             await self.start_epoch()
-        else:
-            LOGGER.debug("Received unknown message from {message_routing_key}: {message_object}")
 
+        else:
+            LOGGER.debug(f"Received unknown message from {message_routing_key}: {message_object}")
 
     async def _send_power_requirement_message(self):
         LOGGER.info("power requirement message initiated")
-        power_requirement = []
-        #self._users = sorted(self._users, key=itemgetter('targetTime'), reverse=False)
-        
-        self._users = sorted(self._users, key=lambda k: (k['targetTime'], -k['requiredEngery']))
-        LOGGER.info(self._users)
+        power_requirements: List[PowerInfo] = []
+        empty_power_requirements: List[PowerInfo] = []
+        connected_users: List[UserData] = []
 
-        for u in self._users:
-            station_power = 0.0
-            for s in self._stations:
-                if(u['stationId'] == s['stationId']):
-                    station_power = s['maxPower']
-            powerInfo = { "userId": u['userId'], "stationId" : u['stationId'], "stationMaxPower": float(station_power), "carMaxPower": u['carMaxPower'], "stateOfCharge": u['stateOfCharge'], "targetStateOfCharge": u['targetStateOfCharge'], "requiredEngery": u['requiredEngery']}
-            power_requirement.append(powerInfo)
-        LOGGER.info(power_requirement)
+        if self._latest_epoch_message is None:
+            await self.send_error_message("Tried to calculate power distribution before any epoch messages had arrived")
+            return
+        start_time = to_utc_datetime_object(self._latest_epoch_message.start_time)
+        end_time = to_utc_datetime_object(self._latest_epoch_message.end_time)
+        epoch_length = (end_time - start_time).seconds
 
-        for p in power_requirement:
-            LOGGER.info("POWER REQ")
+        for user in self._users:
+            arrival_time = to_utc_datetime_object(user.arrival_time)
+            target_time = to_utc_datetime_object(user.target_time)
+            if start_time >= arrival_time and end_time <= target_time:
+                connected_users.append(user)
+        connected_users = sorted(connected_users, key=lambda user: (user.target_time, -user.required_energy))
+        LOGGER.info(f"Connected_users: {connected_users}")
+
+        for station in self._stations:
+            LOGGER.info(f"STATION LOGGER: {station}")
+            isConnected = False
+            for user in connected_users:
+                if user.station_id == station.station_id:
+                    isConnected = True
+                    LOGGER.info(str(start_time))
+                    LOGGER.info(str(user.arrival_time))
+                    powerInfo = PowerInfo(
+                        user_id=user.user_id,
+                        station_id=user.station_id,
+                        station_max_power=station.max_power,
+                        car_max_power=user.car_max_power,
+                        state_of_charge=user.state_of_charge,
+                        target_state_of_charge=user.target_state_of_charge,
+                        required_energy=user.required_energy,
+                        target_time=user.target_time
+                    )
+                    power_requirements.append(powerInfo)
+            if not isConnected:
+                empty_power_requirements.append(PowerInfo(user_id=0, station_id=station.station_id))
+
+        power_requirements = sorted(power_requirements, key=lambda power_info: (power_info.target_time, -power_info.required_energy))
+        LOGGER.info(f"power_requirements: {power_requirements}")
+
+        power_requirements = power_requirements + empty_power_requirements
+        LOGGER.info(f"power_requirements: {power_requirements}")
+
+        for power_info in power_requirements:
             powerRequirementForStation = float(0.0)
-            if(self._used_total_power < self._total_max_power):
-                
-                LOGGER.info("IN CONDITION")
-                LOGGER.info("EPOCH MESSAGE")
-                LOGGER.info("START TIME")
-                LOGGER.info((to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
-                if(p['targetStateOfCharge'] > p['stateOfCharge']):
-                    powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, (p['requiredEngery'] / (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds) * 3600)
-                    #powerRequirementForStation = min(p['stationMaxPower'], p['carMaxPower'], self._total_max_power - self._used_total_power, p['requiredEngery'] / (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds)
-                    self._used_total_power = self._used_total_power + powerRequirementForStation                     
-                LOGGER.info(powerRequirementForStation)  
-                
+            LOGGER.info(f"POWER REQ: {power_info}")
+
+            if power_info.user_id != 0:
+                if self._used_total_power < self._total_max_power:
+                    LOGGER.info("IN CONDITION")
+                    LOGGER.info("EPOCH MESSAGE")
+                    LOGGER.info("START TIME")
+                    LOGGER.info(f"epoch_length: {epoch_length}")
+
+                    if power_info.target_state_of_charge > power_info.state_of_charge:
+                        powerRequirementForStation = min(
+                            power_info.station_max_power,
+                            power_info.car_max_power,
+                            self._total_max_power - self._used_total_power,
+                            power_info.required_energy / (epoch_length / 3600)
+                        )
+                        self._used_total_power = self._used_total_power + powerRequirementForStation
+                    LOGGER.info(f"power to station '{power_info.station_id}': {powerRequirementForStation}")
+
             try:
                 power_requirement_message = self._message_generator.get_message(
-                        PowerRequirementMessage,
-                        EpochNumber=self._latest_epoch,
-                        TriggeringMessageIds=self._triggering_message_ids,
-                        StationId = p['stationId'],
-                        Power = powerRequirementForStation
+                    PowerRequirementMessage,
+                    EpochNumber=self._latest_epoch,
+                    TriggeringMessageIds=self._triggering_message_ids,
+                    StationId = power_info.station_id,
+                    UserId = power_info.user_id,
+                    Power = powerRequirementForStation
                 )
 
                 await self._rabbitmq_client.send_message(
                     topic_name=self._power_requirement_topic,
                     message_bytes= power_requirement_message.bytes()
-                )            
+                )
 
             except (ValueError, TypeError, MessageError) as message_error:
                 # When there is an exception while creating the message, it is in most cases a serious error.
                 log_exception(message_error)
                 await self.send_error_message("Internal error when creating result message.")
 
+        LOGGER.info(f"Allocated {self._used_total_power} power (maximum: {self._total_max_power}) in epoch {self._latest_epoch}")
 
 
 def create_component() -> ICComponent:
     LOGGER.info("create IC component")
     environment_variables = load_environmental_variables(
-        (USERS, list, []),   
-        (STATIONS, list, []),
         (TOTAL_MAX_POWER, float, 0.0)
     )
-    users = cast(list, environment_variables[USERS])
-    stations = cast(list, environment_variables[STATIONS])
     total_max_power = cast(float, environment_variables[TOTAL_MAX_POWER])
 
     return ICComponent(
-        users = users,
-        stations = stations,
         total_max_power = total_max_power
     )
 
