@@ -1,10 +1,11 @@
-# Copyright 2022 Tampere University
+# Copyright 2023 Tampere University
 # This source code is licensed under the MIT license. See LICENSE in the repository root directory.
 # Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
+#            Ville Heikkilä <ville.heikkila@tuni.fi>
 
 import asyncio
-from datetime import datetime
-from typing import Any, cast, List, Union
+from datetime import datetime, timedelta
+from typing import Any, cast, List, Optional, Union
 
 from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
@@ -270,12 +271,15 @@ class ICComponent(AbstractSimulationComponent):
 
         # check if all user requirements can be fulfilled
         energy_check = self._calculate_energy_check()
-        if energy_check.total_available_energy < energy_check.total_required_energy:
+        LOGGER.info(f"Energy check: {energy_check}")
+        if energy_check is not None and energy_check.total_available_energy < energy_check.total_required_energy:
+            energy_percentage = 100 * energy_check.total_available_energy / energy_check.total_required_energy
+            LOGGER.info(f"Sending a requirements warning message: {energy_percentage}")
             await self._send_warning_message(
-                energy_percentage=100 * energy_check.total_available_energy / energy_check.total_required_energy,
+                energy_percentage=energy_percentage,
                 users=energy_check.affected_users
             )
-            # for now after sending the warning message just continue as normal
+            # for now, after sending the warning message just continue as normal
 
         for user in self._users:
             arrival_time = to_utc_datetime_object(user.arrival_time)
@@ -389,14 +393,49 @@ class ICComponent(AbstractSimulationComponent):
             log_exception(message_error)
             await self.send_error_message("Internal error when creating requirements warning message.")
 
-    def _calculate_energy_check(self) -> EnergyCheck:
+    def _calculate_energy_check(self) -> Optional[EnergyCheck]:
         """Calculates and returns the required and available energy for the rest of the simulation."""
-        # TODO: replace the dummy implementation with a proper one
+        if self._latest_epoch_message is None:
+            return None
+
+        total_available_energy: float = 0.0
+        current_start_time = to_utc_datetime_object(self._latest_epoch_message.start_time)
+        end_time = to_utc_datetime_object(self._latest_epoch_message.end_time)
+        epoch_length = (end_time - current_start_time).seconds
+        # the following assumes the target times are in ISO-8601 string format
+        latest_target_time = to_utc_datetime_object(max([user.target_time for user in self._users]))
+
+        while current_start_time < latest_target_time:
+            p_tot_epoch: float = 0.0
+            current_end_time = current_start_time + timedelta(seconds=epoch_length)
+            for user in self._users:
+                # only include users who are connected to a station the entire epoch
+                if (
+                    to_utc_datetime_object(user.arrival_time) <= current_start_time and
+                    to_utc_datetime_object(user.target_time) >= current_end_time
+                ):
+                    p_tot_epoch += min(user.car_max_power, self._get_station_max_power(user.station_id))
+
+            total_available_energy += (epoch_length / 3600) * min(self._total_max_power, p_tot_epoch)
+            current_start_time = current_end_time
+
+        # use all users as affected users for now,
+        # would require more calculations to determine which users are actually affected
         return EnergyCheck(
-            total_available_energy=0.0,
-            total_required_energy=0.0,
-            affected_users=[user.user_component_name for user in self._users]  # use all users for now
+            total_available_energy=total_available_energy,
+            total_required_energy=sum([user.required_energy for user in self._users]),
+            affected_users=[user.user_component_name for user in self._users]
         )
+
+    def _get_station_max_power(self, station_id: str) -> float:
+        station_power = [
+            station.max_power
+            for station in self._stations
+            if station.station_id == station_id
+        ]
+        if station_power:
+            return station_power[0]
+        return 0.0
 
 
 def create_component() -> ICComponent:
