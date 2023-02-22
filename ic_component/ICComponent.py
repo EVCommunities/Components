@@ -46,6 +46,7 @@ CAR_METADATA_TOPIC = "CAR_METADATA_TOPIC"
 STATION_STATE_TOPIC = "STATION_STATE_TOPIC"
 POWER_OUTPUT_TOPIC = "POWER_OUTPUT_TOPIC"
 POWER_REQUIREMENT_TOPIC = "POWER_REQUIREMENT_TOPIC"
+REQUIREMENTS_WARNING_TOPIC = "REQUIREMENTS_WARNING_TOPIC"
 
 TIMEOUT = 1.0
 
@@ -97,10 +98,12 @@ class ICComponent(AbstractSimulationComponent):
         # fix topic names
 
         environment = load_environmental_variables(
-            (POWER_REQUIREMENT_TOPIC, str, "PowerRequirementTopic")
+            (POWER_REQUIREMENT_TOPIC, str, "PowerRequirementTopic"),
+            (REQUIREMENTS_WARNING_TOPIC, str, "Requirements.Warning")
         )
 
         self._power_requirement_topic = cast(str, environment[POWER_REQUIREMENT_TOPIC])
+        self._requirements_warning_topic = cast(str, environment[REQUIREMENTS_WARNING_TOPIC])
 
         # receive topic
         self._other_topics = [
@@ -376,7 +379,7 @@ class ICComponent(AbstractSimulationComponent):
     async def _send_warning_message(self, energy_percentage: float, users: List[str]) -> None:
         """Publishes requirements warning message."""
         try:
-            power_requirement_message = self._message_generator.get_message(
+            requirements_warning_message = self._message_generator.get_message(
                 RequirementsWarningMessage,
                 EpochNumber=self._latest_epoch,
                 TriggeringMessageIds=self._triggering_message_ids,
@@ -385,8 +388,8 @@ class ICComponent(AbstractSimulationComponent):
             )
 
             await self._rabbitmq_client.send_message(
-                topic_name=self._power_requirement_topic,
-                message_bytes= power_requirement_message.bytes()
+                topic_name=self._requirements_warning_topic,
+                message_bytes= requirements_warning_message.bytes()
             )
 
         except (ValueError, TypeError, MessageError) as message_error:
