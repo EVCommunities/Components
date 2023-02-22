@@ -12,6 +12,7 @@ from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
 from tools.datetime_tools import to_utc_datetime_object
 
+from ic_component.energy_check import EnergyCheck
 from ic_component.power_info import PowerInfo
 from ic_component.station_data import StationData
 from ic_component.user_data import UserData
@@ -182,6 +183,7 @@ class ICComponent(AbstractSimulationComponent):
             carMetaDatainfo = UserData(
                 user_id=message_object.user_id,
                 user_name=message_object.user_name,
+                user_component_name=message_object.source_process_id,
                 station_id=message_object.station_id,
                 state_of_charge=message_object.state_of_charge,
                 car_battery_capacity=message_object.car_battery_capacity,
@@ -265,6 +267,15 @@ class ICComponent(AbstractSimulationComponent):
         start_time = to_utc_datetime_object(self._latest_epoch_message.start_time)
         end_time = to_utc_datetime_object(self._latest_epoch_message.end_time)
         epoch_length = (end_time - start_time).seconds
+
+        # check if all user requirements can be fulfilled
+        energy_check = self._calculate_energy_check()
+        if energy_check.total_available_energy < energy_check.total_required_energy:
+            await self._send_warning_message(
+                energy_percentage=100 * energy_check.total_available_energy / energy_check.total_required_energy,
+                users=energy_check.affected_users
+            )
+            # for now after sending the warning message just continue as normal
 
         for user in self._users:
             arrival_time = to_utc_datetime_object(user.arrival_time)
@@ -377,6 +388,15 @@ class ICComponent(AbstractSimulationComponent):
         except (ValueError, TypeError, MessageError) as message_error:
             log_exception(message_error)
             await self.send_error_message("Internal error when creating requirements warning message.")
+
+    def _calculate_energy_check(self) -> EnergyCheck:
+        """Calculates and returns the required and available energy for the rest of the simulation."""
+        # TODO: replace the dummy implementation with a proper one
+        return EnergyCheck(
+            total_available_energy=0.0,
+            total_required_energy=0.0,
+            affected_users=[user.user_component_name for user in self._users]  # use all users for now
+        )
 
 
 def create_component() -> ICComponent:
