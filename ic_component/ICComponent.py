@@ -275,7 +275,12 @@ class ICComponent(AbstractSimulationComponent):
         # check if all user requirements can be fulfilled
         energy_check = self._calculate_energy_check()
         LOGGER.info(f"Energy check: {energy_check}")
-        if energy_check is not None and energy_check.total_available_energy < energy_check.total_required_energy:
+        if (
+            energy_check is not None and
+            len(energy_check.affected_users) > 0 and
+            energy_check.total_available_energy < energy_check.total_required_energy and
+            energy_check.total_required_energy > 0.0
+        ):
             energy_percentage = 100 * energy_check.total_available_energy / energy_check.total_required_energy
             LOGGER.info(f"Sending a requirements warning message: {energy_percentage}")
             await self._send_warning_message(
