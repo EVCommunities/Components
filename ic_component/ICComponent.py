@@ -20,6 +20,7 @@ from messages.StationState_message import StationStateMessage
 from messages.user_state_message import UserStateMessage
 from messages.PowerRequirement_message import PowerRequirementMessage
 from messages.car_state_message import CarStateMessage
+from messages.requirements_warning_message import RequirementsWarningMessage
 
 LOGGER = FullLogger(__name__)
 
@@ -356,6 +357,26 @@ class ICComponent(AbstractSimulationComponent):
             # When there is an exception while creating the message, it is in most cases a serious error.
             log_exception(message_error)
             await self.send_error_message("Internal error when creating result message.")
+
+    async def _send_warning_message(self, energy_percentage: float, users: List[str]) -> None:
+        """Publishes requirements warning message."""
+        try:
+            power_requirement_message = self._message_generator.get_message(
+                RequirementsWarningMessage,
+                EpochNumber=self._latest_epoch,
+                TriggeringMessageIds=self._triggering_message_ids,
+                AvailableEnergy=energy_percentage,
+                AffectedUsers=users
+            )
+
+            await self._rabbitmq_client.send_message(
+                topic_name=self._power_requirement_topic,
+                message_bytes= power_requirement_message.bytes()
+            )
+
+        except (ValueError, TypeError, MessageError) as message_error:
+            log_exception(message_error)
+            await self.send_error_message("Internal error when creating requirements warning message.")
 
 
 def create_component() -> ICComponent:
