@@ -3,6 +3,7 @@
 # Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
 
 import asyncio
+from datetime import datetime
 from typing import Any, cast, List, Union
 
 from tools.components import AbstractSimulationComponent
@@ -255,8 +256,6 @@ class ICComponent(AbstractSimulationComponent):
 
     async def _send_power_requirement_message(self):
         LOGGER.info("power requirement message initiated")
-        power_requirements: List[PowerInfo] = []
-        empty_power_requirements: List[PowerInfo] = []
         connected_users: List[UserData] = []
 
         if self._latest_epoch_message is None:
@@ -273,6 +272,38 @@ class ICComponent(AbstractSimulationComponent):
                 connected_users.append(user)
         connected_users = sorted(connected_users, key=lambda user: (user.target_time, -user.required_energy))
         LOGGER.info(f"Connected_users: {connected_users}")
+
+        power_requirements = self._calculate_power_requirements(connected_users, start_time)
+
+        for power_info in power_requirements:
+            powerRequirementForStation = float(0.0)
+            LOGGER.info(f"POWER REQ: {power_info}")
+
+            if power_info.user_id != 0:
+                if self._used_total_power < self._total_max_power:
+                    LOGGER.info("IN CONDITION")
+                    LOGGER.info("EPOCH MESSAGE")
+                    LOGGER.info("START TIME")
+                    LOGGER.info(f"epoch_length: {epoch_length}")
+
+                    if power_info.target_state_of_charge > power_info.state_of_charge:
+                        powerRequirementForStation = min(
+                            power_info.station_max_power,
+                            power_info.car_max_power,
+                            self._total_max_power - self._used_total_power,
+                            power_info.required_energy / (epoch_length / 3600)
+                        )
+                        self._used_total_power = self._used_total_power + powerRequirementForStation
+                    LOGGER.info(f"power to station '{power_info.station_id}': {powerRequirementForStation}")
+
+            await self._send_single_power_requirement_message(power_info, powerRequirementForStation)
+
+        LOGGER.info(f"Allocated {self._used_total_power} power (maximum: {self._total_max_power}) in epoch {self._latest_epoch}")
+
+    def _calculate_power_requirements(self, connected_users: List[UserData], start_time: datetime):
+        """Calculates and returns the power requirements for each station."""
+        power_requirements: List[PowerInfo] = []
+        empty_power_requirements: List[PowerInfo] = []
 
         for station in self._stations:
             LOGGER.info(f"STATION LOGGER: {station}")
@@ -302,48 +333,29 @@ class ICComponent(AbstractSimulationComponent):
         power_requirements = power_requirements + empty_power_requirements
         LOGGER.info(f"power_requirements: {power_requirements}")
 
-        for power_info in power_requirements:
-            powerRequirementForStation = float(0.0)
-            LOGGER.info(f"POWER REQ: {power_info}")
+        return power_requirements
 
-            if power_info.user_id != 0:
-                if self._used_total_power < self._total_max_power:
-                    LOGGER.info("IN CONDITION")
-                    LOGGER.info("EPOCH MESSAGE")
-                    LOGGER.info("START TIME")
-                    LOGGER.info(f"epoch_length: {epoch_length}")
+    async def _send_single_power_requirement_message(self, power_info: PowerInfo, power_requirement: float) -> None:
+        """Publishes one power requirement message."""
+        try:
+            power_requirement_message = self._message_generator.get_message(
+                PowerRequirementMessage,
+                EpochNumber=self._latest_epoch,
+                TriggeringMessageIds=self._triggering_message_ids,
+                StationId = power_info.station_id,
+                UserId = power_info.user_id,
+                Power = power_requirement
+            )
 
-                    if power_info.target_state_of_charge > power_info.state_of_charge:
-                        powerRequirementForStation = min(
-                            power_info.station_max_power,
-                            power_info.car_max_power,
-                            self._total_max_power - self._used_total_power,
-                            power_info.required_energy / (epoch_length / 3600)
-                        )
-                        self._used_total_power = self._used_total_power + powerRequirementForStation
-                    LOGGER.info(f"power to station '{power_info.station_id}': {powerRequirementForStation}")
+            await self._rabbitmq_client.send_message(
+                topic_name=self._power_requirement_topic,
+                message_bytes= power_requirement_message.bytes()
+            )
 
-            try:
-                power_requirement_message = self._message_generator.get_message(
-                    PowerRequirementMessage,
-                    EpochNumber=self._latest_epoch,
-                    TriggeringMessageIds=self._triggering_message_ids,
-                    StationId = power_info.station_id,
-                    UserId = power_info.user_id,
-                    Power = powerRequirementForStation
-                )
-
-                await self._rabbitmq_client.send_message(
-                    topic_name=self._power_requirement_topic,
-                    message_bytes= power_requirement_message.bytes()
-                )
-
-            except (ValueError, TypeError, MessageError) as message_error:
-                # When there is an exception while creating the message, it is in most cases a serious error.
-                log_exception(message_error)
-                await self.send_error_message("Internal error when creating result message.")
-
-        LOGGER.info(f"Allocated {self._used_total_power} power (maximum: {self._total_max_power}) in epoch {self._latest_epoch}")
+        except (ValueError, TypeError, MessageError) as message_error:
+            # When there is an exception while creating the message, it is in most cases a serious error.
+            log_exception(message_error)
+            await self.send_error_message("Internal error when creating result message.")
 
 
 def create_component() -> ICComponent:
