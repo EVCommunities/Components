@@ -422,12 +422,19 @@ class ICComponent(AbstractSimulationComponent):
             total_available_energy += (epoch_length / 3600) * min(self._total_max_power, p_tot_epoch)
             current_start_time = current_end_time
 
-        # use all users as affected users for now,
-        # would require more calculations to determine which users are actually affected
+        # determine user as affected if they are currently at a station and are not yet at their target capacity
         return EnergyCheck(
             total_available_energy=total_available_energy,
             total_required_energy=sum([user.required_energy for user in self._users]),
-            affected_users=[user.user_component_name for user in self._users]
+            affected_users=[
+                user.user_component_name
+                for user in self._users
+                if (
+                    user.arrival_time <= self._latest_epoch_message.start_time and
+                    user.target_time >= self._latest_epoch_message.end_time and
+                    user.state_of_charge < user.target_state_of_charge
+                )
+            ]
         )
 
     def _get_station_max_power(self, station_id: str) -> float:
