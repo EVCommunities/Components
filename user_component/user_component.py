@@ -16,6 +16,7 @@ from messages.car_metadata_message import CarMetaDataMessage
 from messages.car_state_message import CarStateMessage
 from messages.user_state_message import UserStateMessage
 from messages.PowerOutput_message import PowerOutputMessage
+from messages.requirements_warning_message import RequirementsWarningMessage
 
 
 # initialize logging object for the module
@@ -38,6 +39,7 @@ ARRIVAL_TIME = "ARRIVAL_TIME"
 USER_STATE_TOPIC = "USER_STATE_TOPIC"
 CAR_STATE_TOPIC = "CAR_STATE_TOPIC"
 CAR_METADATA_TOPIC = "CAR_METADATA_TOPIC"
+REQUIREMENTS_WARNING_TOPIC = "REQUIREMENTS_WARNING_TOPIC"
 
 
 # time interval in seconds on how often to check whether the component is still running
@@ -98,12 +100,14 @@ class UserComponent(AbstractSimulationComponent):
         environment = load_environmental_variables(
             (USER_STATE_TOPIC, str, "User.UserState"),
             (CAR_STATE_TOPIC, str, "User.CarState"),
-            (CAR_METADATA_TOPIC, str, "Init.User.CarMetadata")
+            (CAR_METADATA_TOPIC, str, "Init.User.CarMetadata"),
+            (REQUIREMENTS_WARNING_TOPIC, str, "Requirements.Warning")
         )
 
         self._user_state_topic = cast(str, environment[USER_STATE_TOPIC])
         self._car_state_topic = cast(str, environment[CAR_STATE_TOPIC])
         self._car_metadata_topic = cast(str, environment[CAR_METADATA_TOPIC])
+        self._requirements_warning_topic = cast(str, environment[REQUIREMENTS_WARNING_TOPIC])
 
         # The easiest way to ensure that the component will listen to all necessary topics
         # is to set the self._other_topics variable with the list of the topics to listen to.
@@ -111,7 +115,8 @@ class UserComponent(AbstractSimulationComponent):
 
         # receive topic
         self._other_topics = [
-            "PowerOutputTopic"
+            "PowerOutputTopic",
+            self._requirements_warning_topic
         ]
 
         # The base class contains several variables that can be used in the child class.
@@ -224,6 +229,25 @@ class UserComponent(AbstractSimulationComponent):
                 await self.start_epoch()
             else:
                 LOGGER.debug(f"Ignoring PowerOutputMessage from {message_object.source_process_id}")
+
+        elif isinstance(message_object, RequirementsWarningMessage):
+            LOGGER.info(
+                f"Received requirements warning message: only {round(message_object.available_energy, 2)}%" +
+                " of the required energy is available"
+            )
+            if (
+                self._latest_epoch_message is not None and
+                (
+                    self._latest_epoch_message.end_time <= self._arrival_time or
+                    self._latest_epoch_message.start_time >= self._target_time
+                )
+            ):
+                LOGGER.info("Ignoring warning message due to not being at a charging station")
+            elif self.component_name not in message_object.affected_users:
+                LOGGER.info("I am not affected by the warning, so I am satisfied and will do nothing!")
+            else:
+                LOGGER.info("I am affected by the warning, I should probably do something!!")
+                # TODO: add some kind of actual reaction to this case: requirements change? negotiations?
 
         else:
             LOGGER.debug(f"Received unknown message from {message_routing_key}: {message_object}")
