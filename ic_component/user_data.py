@@ -13,6 +13,7 @@ class UserData:
     # metadata attributes
     user_id: int
     user_name: str
+    user_component_name: str
     station_id: str
     state_of_charge: float
     car_battery_capacity: float

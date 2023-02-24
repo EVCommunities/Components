@@ -1,9 +1,11 @@
-# Copyright 2022 Tampere University
+# Copyright 2023 Tampere University
 # This source code is licensed under the MIT license. See LICENSE in the repository root directory.
 # Author(s): Ali Mehraj <ali.mehraj@tuni.fi>
+#            Ville Heikkilä <ville.heikkila@tuni.fi>
 
 import asyncio
-from typing import Any, cast, List, Union
+from datetime import datetime, timedelta
+from typing import Any, cast, List, Optional, Union
 
 from tools.components import AbstractSimulationComponent
 from tools.exceptions.messages import MessageError
@@ -11,6 +13,7 @@ from tools.messages import BaseMessage
 from tools.tools import FullLogger, load_environmental_variables, log_exception
 from tools.datetime_tools import to_utc_datetime_object
 
+from ic_component.energy_check import EnergyCheck
 from ic_component.power_info import PowerInfo
 from ic_component.station_data import StationData
 from ic_component.user_data import UserData
@@ -19,6 +22,7 @@ from messages.StationState_message import StationStateMessage
 from messages.user_state_message import UserStateMessage
 from messages.PowerRequirement_message import PowerRequirementMessage
 from messages.car_state_message import CarStateMessage
+from messages.requirements_warning_message import RequirementsWarningMessage
 
 LOGGER = FullLogger(__name__)
 
@@ -42,6 +46,7 @@ CAR_METADATA_TOPIC = "CAR_METADATA_TOPIC"
 STATION_STATE_TOPIC = "STATION_STATE_TOPIC"
 POWER_OUTPUT_TOPIC = "POWER_OUTPUT_TOPIC"
 POWER_REQUIREMENT_TOPIC = "POWER_REQUIREMENT_TOPIC"
+REQUIREMENTS_WARNING_TOPIC = "REQUIREMENTS_WARNING_TOPIC"
 
 TIMEOUT = 1.0
 
@@ -93,10 +98,12 @@ class ICComponent(AbstractSimulationComponent):
         # fix topic names
 
         environment = load_environmental_variables(
-            (POWER_REQUIREMENT_TOPIC, str, "PowerRequirementTopic")
+            (POWER_REQUIREMENT_TOPIC, str, "PowerRequirementTopic"),
+            (REQUIREMENTS_WARNING_TOPIC, str, "Requirements.Warning")
         )
 
         self._power_requirement_topic = cast(str, environment[POWER_REQUIREMENT_TOPIC])
+        self._requirements_warning_topic = cast(str, environment[REQUIREMENTS_WARNING_TOPIC])
 
         # receive topic
         self._other_topics = [
@@ -180,6 +187,7 @@ class ICComponent(AbstractSimulationComponent):
             carMetaDatainfo = UserData(
                 user_id=message_object.user_id,
                 user_name=message_object.user_name,
+                user_component_name=message_object.source_process_id,
                 station_id=message_object.station_id,
                 state_of_charge=message_object.state_of_charge,
                 car_battery_capacity=message_object.car_battery_capacity,
@@ -255,8 +263,6 @@ class ICComponent(AbstractSimulationComponent):
 
     async def _send_power_requirement_message(self):
         LOGGER.info("power requirement message initiated")
-        power_requirements: List[PowerInfo] = []
-        empty_power_requirements: List[PowerInfo] = []
         connected_users: List[UserData] = []
 
         if self._latest_epoch_message is None:
@@ -266,6 +272,23 @@ class ICComponent(AbstractSimulationComponent):
         end_time = to_utc_datetime_object(self._latest_epoch_message.end_time)
         epoch_length = (end_time - start_time).seconds
 
+        # check if all user requirements can be fulfilled
+        energy_check = self._calculate_energy_check()
+        LOGGER.info(f"Energy check: {energy_check}")
+        if (
+            energy_check is not None and
+            len(energy_check.affected_users) > 0 and
+            energy_check.total_available_energy < energy_check.total_required_energy and
+            energy_check.total_required_energy > 0.0
+        ):
+            energy_percentage = 100 * energy_check.total_available_energy / energy_check.total_required_energy
+            LOGGER.info(f"Sending a requirements warning message: {energy_percentage}")
+            await self._send_warning_message(
+                energy_percentage=energy_percentage,
+                users=energy_check.affected_users
+            )
+            # for now, after sending the warning message just continue as normal
+
         for user in self._users:
             arrival_time = to_utc_datetime_object(user.arrival_time)
             target_time = to_utc_datetime_object(user.target_time)
@@ -273,6 +296,38 @@ class ICComponent(AbstractSimulationComponent):
                 connected_users.append(user)
         connected_users = sorted(connected_users, key=lambda user: (user.target_time, -user.required_energy))
         LOGGER.info(f"Connected_users: {connected_users}")
+
+        power_requirements = self._calculate_power_requirements(connected_users, start_time)
+
+        for power_info in power_requirements:
+            powerRequirementForStation = float(0.0)
+            LOGGER.info(f"POWER REQ: {power_info}")
+
+            if power_info.user_id != 0:
+                if self._used_total_power < self._total_max_power:
+                    LOGGER.info("IN CONDITION")
+                    LOGGER.info("EPOCH MESSAGE")
+                    LOGGER.info("START TIME")
+                    LOGGER.info(f"epoch_length: {epoch_length}")
+
+                    if power_info.target_state_of_charge > power_info.state_of_charge:
+                        powerRequirementForStation = min(
+                            power_info.station_max_power,
+                            power_info.car_max_power,
+                            self._total_max_power - self._used_total_power,
+                            power_info.required_energy / (epoch_length / 3600)
+                        )
+                        self._used_total_power = self._used_total_power + powerRequirementForStation
+                    LOGGER.info(f"power to station '{power_info.station_id}': {powerRequirementForStation}")
+
+            await self._send_single_power_requirement_message(power_info, powerRequirementForStation)
+
+        LOGGER.info(f"Allocated {self._used_total_power} power (maximum: {self._total_max_power}) in epoch {self._latest_epoch}")
+
+    def _calculate_power_requirements(self, connected_users: List[UserData], start_time: datetime):
+        """Calculates and returns the power requirements for each station."""
+        power_requirements: List[PowerInfo] = []
+        empty_power_requirements: List[PowerInfo] = []
 
         for station in self._stations:
             LOGGER.info(f"STATION LOGGER: {station}")
@@ -302,48 +357,100 @@ class ICComponent(AbstractSimulationComponent):
         power_requirements = power_requirements + empty_power_requirements
         LOGGER.info(f"power_requirements: {power_requirements}")
 
-        for power_info in power_requirements:
-            powerRequirementForStation = float(0.0)
-            LOGGER.info(f"POWER REQ: {power_info}")
+        return power_requirements
 
-            if power_info.user_id != 0:
-                if self._used_total_power < self._total_max_power:
-                    LOGGER.info("IN CONDITION")
-                    LOGGER.info("EPOCH MESSAGE")
-                    LOGGER.info("START TIME")
-                    LOGGER.info(f"epoch_length: {epoch_length}")
+    async def _send_single_power_requirement_message(self, power_info: PowerInfo, power_requirement: float) -> None:
+        """Publishes one power requirement message."""
+        try:
+            power_requirement_message = self._message_generator.get_message(
+                PowerRequirementMessage,
+                EpochNumber=self._latest_epoch,
+                TriggeringMessageIds=self._triggering_message_ids,
+                StationId = power_info.station_id,
+                UserId = power_info.user_id,
+                Power = power_requirement
+            )
 
-                    if power_info.target_state_of_charge > power_info.state_of_charge:
-                        powerRequirementForStation = min(
-                            power_info.station_max_power,
-                            power_info.car_max_power,
-                            self._total_max_power - self._used_total_power,
-                            power_info.required_energy / (epoch_length / 3600)
-                        )
-                        self._used_total_power = self._used_total_power + powerRequirementForStation
-                    LOGGER.info(f"power to station '{power_info.station_id}': {powerRequirementForStation}")
+            await self._rabbitmq_client.send_message(
+                topic_name=self._power_requirement_topic,
+                message_bytes= power_requirement_message.bytes()
+            )
 
-            try:
-                power_requirement_message = self._message_generator.get_message(
-                    PowerRequirementMessage,
-                    EpochNumber=self._latest_epoch,
-                    TriggeringMessageIds=self._triggering_message_ids,
-                    StationId = power_info.station_id,
-                    UserId = power_info.user_id,
-                    Power = powerRequirementForStation
+        except (ValueError, TypeError, MessageError) as message_error:
+            # When there is an exception while creating the message, it is in most cases a serious error.
+            log_exception(message_error)
+            await self.send_error_message("Internal error when creating result message.")
+
+    async def _send_warning_message(self, energy_percentage: float, users: List[str]) -> None:
+        """Publishes requirements warning message."""
+        try:
+            requirements_warning_message = self._message_generator.get_message(
+                RequirementsWarningMessage,
+                EpochNumber=self._latest_epoch,
+                TriggeringMessageIds=self._triggering_message_ids,
+                AvailableEnergy=energy_percentage,
+                AffectedUsers=users
+            )
+
+            await self._rabbitmq_client.send_message(
+                topic_name=self._requirements_warning_topic,
+                message_bytes= requirements_warning_message.bytes()
+            )
+
+        except (ValueError, TypeError, MessageError) as message_error:
+            log_exception(message_error)
+            await self.send_error_message("Internal error when creating requirements warning message.")
+
+    def _calculate_energy_check(self) -> Optional[EnergyCheck]:
+        """Calculates and returns the required and available energy for the rest of the simulation."""
+        if self._latest_epoch_message is None:
+            return None
+
+        total_available_energy: float = 0.0
+        current_start_time = to_utc_datetime_object(self._latest_epoch_message.start_time)
+        end_time = to_utc_datetime_object(self._latest_epoch_message.end_time)
+        epoch_length = (end_time - current_start_time).seconds
+        # the following assumes the target times are in ISO-8601 string format
+        latest_target_time = to_utc_datetime_object(max([user.target_time for user in self._users]))
+
+        while current_start_time < latest_target_time:
+            p_tot_epoch: float = 0.0
+            current_end_time = current_start_time + timedelta(seconds=epoch_length)
+            for user in self._users:
+                # only include users who are connected to a station the entire epoch
+                if (
+                    to_utc_datetime_object(user.arrival_time) <= current_start_time and
+                    to_utc_datetime_object(user.target_time) >= current_end_time
+                ):
+                    p_tot_epoch += min(user.car_max_power, self._get_station_max_power(user.station_id))
+
+            total_available_energy += (epoch_length / 3600) * min(self._total_max_power, p_tot_epoch)
+            current_start_time = current_end_time
+
+        # determine user as affected if they are currently at a station and are not yet at their target capacity
+        return EnergyCheck(
+            total_available_energy=total_available_energy,
+            total_required_energy=sum([user.required_energy for user in self._users]),
+            affected_users=[
+                user.user_component_name
+                for user in self._users
+                if (
+                    user.arrival_time <= self._latest_epoch_message.start_time and
+                    user.target_time >= self._latest_epoch_message.end_time and
+                    user.state_of_charge < user.target_state_of_charge
                 )
+            ]
+        )
 
-                await self._rabbitmq_client.send_message(
-                    topic_name=self._power_requirement_topic,
-                    message_bytes= power_requirement_message.bytes()
-                )
-
-            except (ValueError, TypeError, MessageError) as message_error:
-                # When there is an exception while creating the message, it is in most cases a serious error.
-                log_exception(message_error)
-                await self.send_error_message("Internal error when creating result message.")
-
-        LOGGER.info(f"Allocated {self._used_total_power} power (maximum: {self._total_max_power}) in epoch {self._latest_epoch}")
+    def _get_station_max_power(self, station_id: str) -> float:
+        station_power = [
+            station.max_power
+            for station in self._stations
+            if station.station_id == station_id
+        ]
+        if station_power:
+            return station_power[0]
+        return 0.0
 
 
 def create_component() -> ICComponent:
