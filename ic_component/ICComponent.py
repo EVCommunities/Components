@@ -270,7 +270,7 @@ class ICComponent(AbstractSimulationComponent):
             return
         start_time = to_utc_datetime_object(self._latest_epoch_message.start_time)
         end_time = to_utc_datetime_object(self._latest_epoch_message.end_time)
-        epoch_length = (end_time - start_time).seconds
+        epoch_length = int((end_time - start_time).total_seconds())
 
         # check if all user requirements can be fulfilled
         energy_check = self._calculate_energy_check()
@@ -409,7 +409,7 @@ class ICComponent(AbstractSimulationComponent):
         total_available_energy: float = 0.0
         current_start_time = to_utc_datetime_object(self._latest_epoch_message.start_time)
         end_time = to_utc_datetime_object(self._latest_epoch_message.end_time)
-        epoch_length = (end_time - current_start_time).seconds
+        epoch_length = int((end_time - current_start_time).total_seconds())
         # the following assumes the target times are in ISO-8601 string format
         latest_target_time = to_utc_datetime_object(max([user.target_time for user in self._users]))
 

@@ -212,7 +212,7 @@ class UserComponent(AbstractSimulationComponent):
                     return
 
                 LOGGER.debug(f"Received PowerOutputMessage from {message_object.source_process_id}")
-                epoch_length = (to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).seconds
+                epoch_length = int((to_utc_datetime_object(self._latest_epoch_message.end_time) - to_utc_datetime_object(self._latest_epoch_message.start_time)).total_seconds())
                 LOGGER.info(f"epoch length: {epoch_length}")
                 original_energy = (self._car_battery_capacity * self._state_of_charge) / 100  # in kWh
                 LOGGER.info(f"ORIGINAL ENERGY: {original_energy}")
